@@ -23,7 +23,7 @@ const MongoStore = mongo(session);
 /**
  * Load environment variables from .env file, where API keys and passwords are configured.
  */
-if (process.env.ENVIRONMENT === 'DEV') {
+if (!process.env.ENVIRONMENT) {
     dotenv.config({ path: __dirname + '/config/.env.dev' });
 }
 /**
