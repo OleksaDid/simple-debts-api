@@ -1,0 +1,759 @@
+swagger: "2.0"
+info:
+  version: "0.0.2"
+  title: Simple Debts API
+# during dev, should point to your local machine
+host: simple-debts.herokuapp.com
+# basePath prefixes all resource paths
+basePath: /
+#
+schemes:
+  # tip: remove http to make production-grade
+  - http
+  - https
+# format of bodies a client can send (Content-Type)
+consumes:
+  - application/json
+# format of the responses to the client (Accepts)
+produces:
+  - application/json
+securityDefinitions:
+  jwt:
+    description: login, get your token and put it here in format 'bearer *token*'
+    type: apiKey
+    name: Authorization
+    in: header
+paths:
+  /debts:
+    x-swagger-router-controller: debtsController
+    get:
+      tags:
+        - debts
+      description: Get all user's debts
+      operationId: getAllUserDebts
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+    put:
+      tags:
+        - debts
+      description: Creates new Debts entity with selected User
+      operationId: createNewDebt
+      parameters:
+        - in: body
+          required: true
+          name: debt
+          description: Creation info
+          schema:
+            type: object
+            required:
+              - userId
+              - countryCode
+            properties:
+              userId:
+                type: string
+                format: id
+                description: Id of User you want to create new Debt with
+              countryCode:
+                type: string
+                format: ISO2
+                description: Used to show currency
+                minLength: 2
+                maxLength: 2
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /debts/{id}:
+    x-swagger-router-controller: debtsController
+    get:
+      tags:
+        - debts
+      description: Get Debt entity by Id
+      operationId: getDebtsById
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /debts/{id}/creation:
+    x-swagger-router-controller: debtsController
+    post:
+      tags:
+        - debts
+      description: Accepts Debt creation request
+      operationId: acceptCreation
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+    delete:
+      tags:
+        - debts
+      description: Declines Debt creation request
+      operationId: declineCreation
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /debts/{id}/delete_request:
+    x-swagger-router-controller: debtsController
+    put:
+      tags:
+        - debts
+      description: Request deleting of Debt entity
+      operationId: requestDebtsDelete
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+    delete:
+      tags:
+        - debts
+      description: Accept delete request and delete Debt entity
+      operationId: requestDebtsDeleteAccept
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+    post:
+      tags:
+        - debts
+      description: Decline delete request and save Debt entity
+      operationId: requestDebtsDeleteDecline
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /debts/single:
+    x-swagger-router-controller: debtsController
+    put:
+      tags:
+        - debts
+      description: Create new Debt entity for single user
+      operationId: createSingleDebt
+      parameters:
+        - in: body
+          required: true
+          name: debt
+          description: Creation info
+          schema:
+            type: object
+            required:
+              - userName
+              - countryCode
+            properties:
+              userName:
+                type: string
+                description: Name for virtual user you create Debt entity with
+              countryCode:
+                type: string
+                format: ISO2
+                description: Used to show currency
+                minLength: 2
+                maxLength: 2
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /debts/single/{id}:
+    x-swagger-router-controller: debtsController
+    delete:
+      tags:
+        - debts
+      description: Deletes single Debt entity
+      operationId: deleteSingleDebt
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /login_status:
+    x-swagger-router-controller: authController
+    get:
+      tags:
+        - login
+      description: Checks user's login status
+      operationId: checkLoginStatus
+      responses:
+        "200":
+          description: Success
+        "401":
+          description: Unauthorized
+      security:
+        - jwt: []
+  /login/facebook:
+    # binds a127 app logic to a route
+    x-swagger-router-controller: authController
+    get:
+      tags:
+        - login
+      description: Logins user via facebook
+      # used as the method name of the controller
+      operationId: facebookLogin
+      parameters:
+        - in: header
+          name: Authorization
+          type: string
+          format: Bearer *fb_token*
+          required: true
+      responses:
+        "200":
+          description: Success
+          schema:
+            # a pointer to a definition
+            $ref: "#/definitions/OnLogin"
+        # responses may fall through to errors
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Login error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /login/local:
+    x-swagger-router-controller: authController
+    post:
+      tags:
+        - login
+      description: Logins user via email and password
+      operationId: localLogin
+      parameters:
+        - in: body
+          required: true
+          name: credentials
+          description: User's credentials
+          schema:
+            type: object
+            required:
+              - email
+              - password
+            properties:
+              email:
+                type: string
+                format: email
+              password:
+                type: string
+                format: password
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/OnLogin"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Login error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /operation:
+    x-swagger-router-controller: operationsController
+    put:
+      tags:
+        - operation
+      description: Creates new operation in desired Debt entity or sends creation request
+      operationId: createOperation
+      parameters:
+        - in: body
+          required: true
+          name: operation
+          description: Operation's info
+          schema:
+            type: object
+            required:
+              - debtsId
+              - moneyAmount
+              - moneyReceiver
+              - description
+            properties:
+              debtsId:
+                type: string
+                format: id
+                description: Id of Debts entity which to create new operation in
+              moneyAmount:
+                type: number
+                description: Amount of money
+              moneyReceiver:
+                type: string
+                format: id
+                description: Id of user which receives money
+              description:
+                type: string
+                description: Some notes about the operation
+                minLength: 0
+                maxLength: 70
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /operation/{id}:
+    x-swagger-router-controller: operationsController
+    delete:
+      tags:
+        - operation
+      description: Deletes operation or sends delete request
+      operationId: deleteOperation
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of operation
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /operation/{id}/creation:
+    x-swagger-router-controller: operationsController
+    post:
+      tags:
+        - operation
+      description: Accepts operation creation request
+      operationId: acceptOperation
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of operation
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+    delete:
+      tags:
+        - operation
+      description: Declines operation creation request
+      operationId: declineOperation
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of operation
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /signup/local:
+    x-swagger-router-controller: authController
+    put:
+      tags:
+        - login
+      description: Signs up and login user via email and password
+      operationId: localSignUp
+      parameters:
+        - in: body
+          required: true
+          name: credentials
+          description: User's credentials
+          schema:
+            type: object
+            required:
+              - email
+              - password
+            properties:
+              email:
+                type: string
+                format: email
+              password:
+                type: string
+                format: password
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/OnLogin"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Login error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /users:
+    x-swagger-router-controller: usersController
+    get:
+      tags:
+        - users
+      description: Search users by name
+      operationId: getUsersArrayByName
+      parameters:
+        - in: query
+          name: name
+          required: true
+          type: string
+          description: User name
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/User"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+    patch:
+      tags:
+        - users
+      description: Updates user's profile data
+      operationId: updateUserData
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: formData
+          name: image
+          type: file
+          description: User's avatar. Generated on server if not set
+        - in: formData
+          name: name
+          type: string
+          required: true
+          description: User's name
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/User"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /swagger:
+    x-swagger-pipe: swagger_raw
+# complex objects have schema definitions
+definitions:
+  OnLogin:
+    type: object
+    properties:
+      user:
+        type: object
+        properties:
+          id:
+            type: string
+            format: id
+            description: User's Id
+          name:
+            type: string
+          picture:
+            type: string
+            format: url
+            description: Url of user's avatar
+      token:
+        type: string
+        description: JWT
+  User:
+    type: object
+    properties:
+      id:
+        type: string
+        format: id
+        description: User's Id
+      name:
+        type: string
+      picture:
+        type: string
+        format: url
+        description: Url of user's avatar
+  Debt:
+    type: object
+    properties:
+      id:
+        type: string
+        format: id
+      user:
+        $ref: "#/definitions/User"
+      type:
+        type: string
+        format: SINGLE_USER | MULTIPLE_USERS
+      countryCode:
+        type: string
+        format: ISO2
+        description: Used to show currency
+      status:
+        type: string
+        format: CREATION_AWAITING | UNCHANGED | CHANGE_AWAITING | DELETE_AWAITING
+      statusAcceptor:
+        type: string
+        format: id | null
+        description: Id of user that needs to accept new set status. If status === UNCHANGED then null
+      summary:
+        type: number
+        description: Total calculated summary of all operations
+      moneyReceiver:
+        type: string
+        format: id | null
+        description: Id of user that takes summary money. If summary === 0 then null
+      moneyOperations:
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+              format: id
+            date:
+              type: string
+              format: date
+              description: Creation date in full-date format
+            moneyAmount:
+              type: number
+              description: Amount of money
+            moneyReceiver:
+              type: string
+              format: id
+              description: Id of user which receives money
+            description:
+              type: string
+              description: Some notes about the operation
+              minLength: 0
+              maxLength: 70
+            status:
+              type: string
+              format: CREATION_AWAITING | UNCHANGED
+            statusAcceptor:
+              type: string
+              format: id ? null
+              description: Id of user that needs to accept new set status. If status === UNCHANGED then null
+  ErrorResponse:
+    type: object
+    properties:
+      error:
+        type: string
