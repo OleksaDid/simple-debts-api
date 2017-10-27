@@ -24,7 +24,7 @@ const MongoStore = mongo(session);
  * Load environment variables from .env file, where API keys and passwords are configured.
  */
 if(!process.env.ENVIRONMENT) {
-    dotenv.config({ path: __dirname + '/config/.env.dev' });
+    dotenv.config({ path: __dirname + '/config/.env.example' });
 }
 
 
@@ -56,7 +56,7 @@ module.exports = app; // for testing
  * Connect to MongoDB.
  */
 // mongoose.Promise = global.Promise;
-mongoose.connect(process.env.ENVIRONMENT === 'DEV' ? process.env.MONGODB_URI : process.env.MONGOLAB_URI);
+mongoose.connect(process.env.ENVIRONMENT === 'LOCAL' ? process.env.MONGODB_URI : process.env.MONGOLAB_URI);
 
 mongoose.connection.on('error', () => {
     console.log('MongoDB connection error. Please make sure MongoDB is running.');
