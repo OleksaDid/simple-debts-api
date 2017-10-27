@@ -1,1 +1,1 @@
-_**Simple Debts API**_
+**Simple Debts API**
