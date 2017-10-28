@@ -45,7 +45,12 @@ userSchema.methods.validPassword = function (password) {
     return bcrypt.compareSync(password, this.password);
 };
 userSchema.methods.generateIdenticon = (hashSubject) => {
-    const imgBase64 = new Identicon(hashSubject, 120).toString();
+    const identiconOptions = {
+        background: [255, 255, 255, 255],
+        margin: 0.2,
+        size: 200
+    };
+    const imgBase64 = new Identicon(hashSubject, identiconOptions).toString();
     const fileName = hashSubject + '.png';
     return new Promise((resolve, reject) => {
         fs.writeFile('public/images/' + fileName, new Buffer(imgBase64, 'base64'), (err) => {
