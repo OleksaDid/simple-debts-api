@@ -38,6 +38,7 @@ const operationsController = require("./api/controllers/moneyOperation");
  */
 const passportConfig = require("./api/helpers/passport");
 const rollbar_1 = require("./api/helpers/rollbar");
+const errorHandler = require("errorhandler");
 /**
  * Create Express server.
  */
@@ -147,6 +148,6 @@ app.get('/login_status', passport.authenticate('jwt', { session: false }), authC
 /**
  * Error Handler. Provides full stack - remove for production
  */
-app.use(rollbar_1.rollbar.errorHandler());
+app.use(process.env.ENVIRONMENT === 'LOCAL' ? errorHandler() : rollbar_1.rollbar.errorHandler());
 module.exports = app;
 //# sourceMappingURL=app.js.map

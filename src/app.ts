@@ -41,6 +41,7 @@ import * as operationsController from './api/controllers/moneyOperation';
  */
 import * as passportConfig from './api/helpers/passport';
 import {rollbar} from "./api/helpers/rollbar";
+import errorHandler = require("errorhandler");
 
 /**
  * Create Express server.
@@ -179,6 +180,6 @@ app.get('/login_status', passport.authenticate('jwt', { session: false }), authC
 /**
  * Error Handler. Provides full stack - remove for production
  */
-app.use(rollbar.errorHandler());
+app.use(process.env.ENVIRONMENT === 'LOCAL' ?  errorHandler() : rollbar.errorHandler());
 
 module.exports = app;
