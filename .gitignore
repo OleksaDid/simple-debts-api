@@ -141,3 +141,7 @@ Temporary Items
 .env.prod
 .env.example
 
+.idea
+
+public/images/*
+
