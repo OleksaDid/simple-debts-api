@@ -3,390 +3,394 @@ import { DebtsListClass, DebtsModel, DebtsModelClass, default as Debts } from '.
 import { default as User, UserModel } from '../models/User';
 import { Id } from '../models/common';
 import * as fs from 'fs';
-import { errorHandler } from '../helpers/error-handler';
+import {StaticHelper} from "../helpers/static";
+import {ErrorHandler} from "../helpers/error-handler";
 
 
-/*
- * PUT
- * /debts
- * @param userId Id Id of the user you want to create a common Debts with
- * @param countryCode String ISO2 country code
- */
-export let createNewDebt = (req: any, res: Response) => {
-    req.assert('userId', 'User Id is not valid').notEmpty();
-    req.assert('countryCode', 'Country code is empty').notEmpty();
-    req.assert('countryCode', 'Country code length must be 2').isLength({min: 2, max: 2});
 
-    const errors = req.validationErrors();
+export class DebtsController {
 
-    if (errors) {
-        return errorHandler(req, res, errors);
-    }
+    private errorHandler = new ErrorHandler();
 
-    const userId = req.swagger ? req.swagger.params.userId.value : req.body.userId;
-    const countryCode = req.swagger ? req.swagger.params.countryCode.value : req.body.countryCode;
-    const creatorId = req.user.id;
 
-    if(userId == creatorId) {
-        return errorHandler(req, res, 'You cannot create Debts with yourself');
-    }
+    /*
+     * PUT
+     * /debts
+     * @param userId Id Id of the user you want to create a common Debts with
+     * @param countryCode String ISO2 country code
+     */
+    createNewDebt = (req: any, res: Response) => {
+        req.assert('userId', 'User Id is not valid').notEmpty();
+        req.assert('countryCode', 'Country code is empty').notEmpty();
+        req.assert('countryCode', 'Country code length must be 2').isLength({min: 2, max: 2});
 
-    return User.findById(userId).exec().then((user: UserModel) => {
+        const errors = req.validationErrors();
 
-        return Debts.findOne({'users': {'$all': [userId, creatorId]}}).exec().then((debts: DebtsModel) => {
-            if(debts) {
-                return errorHandler(req, res, 'Such debts object is already created');
-            }
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
+        }
 
-            const newDebts = new DebtsModelClass(creatorId, userId, 'MULTIPLE_USERS', countryCode);
+        const userId = req.swagger ? req.swagger.params.userId.value : req.body.userId;
+        const countryCode = req.swagger ? req.swagger.params.countryCode.value : req.body.countryCode;
+        const creatorId = req.user.id;
 
-            return Debts.create(newDebts).then((resp: DebtsModel) => {
-                return getDebtsByIdHelper(req, res, resp._id);
-            }).catch(err => errorHandler(req, res, err));
-        });
-    }).catch(err => errorHandler(req, res, err));
-};
+        if(userId == creatorId) {
+            return this.errorHandler.errorHandler(req, res, 'You cannot create Debts with yourself');
+        }
 
-/*
- * PUT
- * /debts/single
- * @param userName String Name of virtual user
- * @param countryCode String ISO2 country code
- */
-export let createSingleDebt = (req: any, res: Response) => {
-    req.assert('userName', 'User Name is not valid').notEmpty();
-    req.assert('countryCode', 'Country code is empty').notEmpty();
-    req.assert('countryCode', 'Country code length must be 2').isLength({min: 2, max: 2});
+        return User
+            .findById(userId)
+            .exec()
+            .then((user: UserModel) => Debts.findOne({'users': {'$all': [userId, creatorId]}}).exec())
+            .then((debts: DebtsModel) => {
+                if(debts) {
+                    throw 'Such debts object is already created';
+                }
 
-    const errors = req.validationErrors();
+                const newDebts = new DebtsModelClass(creatorId, userId, 'MULTIPLE_USERS', countryCode);
 
-    if (errors) {
-        return errorHandler(req, res, errors);
-    }
-
-    const userName = req.swagger ? req.swagger.params.userName.value : req.body.userName;
-    const countryCode = req.swagger ? req.swagger.params.countryCode.value : req.body.countryCode;
-    const creatorId = req.user.id;
-
-    const virtUser = {
-        name: userName
+                return Debts.create(newDebts);
+            })
+            .then((resp: DebtsModel) => this.getDebtsByIdHelper(req, res, resp._id))
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
     };
 
-    return Debts.find({'users': {'$all': [creatorId]}, 'type': 'SINGLE_USER'})
-        .populate({ path: 'users', select: 'name'})
-        .lean()
-        .then((resp: any) => {
-            if(resp && resp.length > 0 && resp.some(debt => !!debt.users.find(us => us.name === userName))) {
-                errorHandler(req, res, 'You already have virtual user with such name');
-                return false;
-            }
-            return true;
-        })
-        .then((resp: boolean) => {
-            if(resp) {
-                return User.create(virtUser).then((user: any) => {
+    /*
+     * PUT
+     * /debts/single
+     * @param userName String Name of virtual user
+     * @param countryCode String ISO2 country code
+     */
+    createSingleDebt = (req: any, res: Response) => {
+        req.assert('userName', 'User Name is not valid').notEmpty();
+        req.assert('countryCode', 'Country code is empty').notEmpty();
+        req.assert('countryCode', 'Country code length must be 2').isLength({min: 2, max: 2});
 
-                    const newUser: any = new User();
-                    newUser.generateIdenticon(user.id)
-                        .then(image => {
+        const errors = req.validationErrors();
 
-                            user.picture = req.protocol + '://' + req.get('host') + '/images/' + image;
-
-                            user.save(err => {
-                                if(err) {
-                                    return errorHandler(req, res, err);
-                                }
-
-
-                                const newDebts = new DebtsModelClass(creatorId, user._id, 'SINGLE_USER', countryCode);
-
-
-                                return Debts.create(newDebts).then((resp: DebtsModel) => {
-                                    return getDebtsByIdHelper(req, res, resp._id);
-                                }).catch(err => errorHandler(req, res, err));
-                            });
-                        })
-                        .catch(err => errorHandler(req, res, err));
-                }).catch(err => errorHandler(req, res, err));
-            }
-        }).catch(err => errorHandler(req, res, err));
-};
-
-/*
- * DELETE
- * /debts/single
- * @param debtsId Id Id of Debts you want to delete
- */
-export let deleteSingleDebt = (req: any, res: Response) => {
-    req.assert('id', 'Debts Id is not valid').notEmpty();
-
-    const errors = req.validationErrors();
-
-    if (errors) {
-        return errorHandler(req, res, errors);
-    }
-
-    const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
-    const userId = req.user.id;
-
-    return Debts.findOneAndRemove({_id: debtsId, users: {$in: [userId]}, type: 'SINGLE_USER'})
-        .then((resp: any) => {
-            if(!resp) {
-                return errorHandler(req, res, 'Debts not found');
-            }
-
-            const virtualUserId = resp.users.find(user => user.toString() != userId);
-
-            User.findByIdAndRemove(virtualUserId)
-                .then((user: any) => {
-                    if(!user) {
-                        return errorHandler(req, res, 'User not found');
-                    }
-
-                    const imageName = user.picture.match(/\/images\/.*/);
-
-                    fs.unlink('public' + imageName);
-
-                    return getAllUserDebts(req, res);
-                })
-                .catch(err => errorHandler(req, res, err));
-        }).catch(err => errorHandler(req, res, err));
-};
-
-/*
- * POST
- * /debts/creation
- * @param debtsId Id Id of debts you want to accept
- */
-export let acceptCreation = (req: any, res: Response) => {
-    req.assert('id', 'Debts Id is not valid').notEmpty();
-
-    const errors = req.validationErrors();
-
-    if (errors) {
-        return errorHandler(req, res, errors);
-    }
-
-    const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
-    const userId = req.user.id;
-
-    return Debts.findOneAndUpdate({ _id: debtsId, status: 'CREATION_AWAITING', statusAcceptor: userId }, { status: 'UNCHANGED', statusAcceptor: null })
-        .then((resp: DebtsModel) => {
-            if(!resp) {
-                return errorHandler(req, res, 'Debts not found');
-            }
-            
-            return getAllUserDebts(req, res);
-        }).catch(err => errorHandler(req, res, err));
-};
-
-/*
- * DELETE
- * /debts/creation
- * @param debtsId Id Id of debts you want to decline
- */
-export let declineCreation = (req: any, res: Response) => {
-    req.assert('id', 'Debts Id is not valid').notEmpty();
-
-    const errors = req.validationErrors();
-
-    if (errors) {
-        return errorHandler(req, res, errors);
-    }
-
-    const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
-    const userId = req.user.id;
-
-    return Debts.findOneAndRemove({ _id: debtsId, status: 'CREATION_AWAITING', statusAcceptor: userId })
-        .then((resp: DebtsModel) => {
-            if(!resp) {
-                return errorHandler(req, res, 'Debts not found');
-            }
-
-            return getAllUserDebts(req, res);
-        }).catch(err => errorHandler(req, res, err));
-};
-
-/*
- * GET
- * /debts
- */
-export let getAllUserDebts = (req: any, res: Response) => {
-    const userId = req.user.id;
-
-    return Debts
-        .find({'users': {'$all': [userId]}})
-        .populate({ path: 'users', select: 'name picture'})
-        .sort({status: 1, updatedAt: -1})
-        .lean()
-        .exec((err, debts: any) => {
-            if(err) {
-                return errorHandler(req, res, err);
-            }
-
-            if(debts) {
-                const debtsArray = debts.map(debt => {
-                    const newDebt = debt;
-                    newDebt.user = newDebt.users.find(user => user._id.toString() != userId);
-                    newDebt.user.id = newDebt.user._id;
-                    newDebt.id = debt._id;
-                    delete newDebt._id;
-                    delete newDebt.user._id;
-                    delete newDebt.users;
-                    delete newDebt.moneyOperations;
-                    delete newDebt.__v;
-                    delete newDebt.createdAt;
-                    delete newDebt.updatedAt;
-                    return newDebt;
-                });
-
-                res.json(new DebtsListClass(debtsArray, userId));
-            }
-        })
-        .catch(err => errorHandler(req, res, err));
-};
-
-/*
-* GET
-* /debts/:id
-*/
-export let getDebtsById = (req: any, res: Response) => {
-  return getDebtsByIdHelper(req, res);
-};
-
-/*
- * PUT
- * /debts/delete-request
- * @param debtsId Id Id of debts you want to delete
- */
-export let requestDebtsDelete = (req, res) => {
-    req.assert('id', 'Debts Id is not valid').notEmpty();
-
-    const errors = req.validationErrors();
-
-    if (errors) {
-        return errorHandler(req, res, errors);
-    }
-
-    const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
-    const userId = req.user.id;
-
-    return Debts.findOne({ _id: debtsId, users: {'$all': [userId]} }, (err, debts: any) => {
-        if (err) {
-            return errorHandler(req, res, err);
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
         }
 
-        if(debts.statusAcceptor !== null || debts.status !== 'UNCHANGED') {
-            return errorHandler(req, res, 'Cannot modify debts that need acceptance');
+        const userName = req.swagger ? req.swagger.params.userName.value : req.body.userName;
+        const countryCode = req.swagger ? req.swagger.params.countryCode.value : req.body.countryCode;
+        const creatorId = req.user.id;
+
+        const virtUser = {
+            name: userName
+        };
+
+        return Debts
+            .find({'users': {'$all': [creatorId]}, 'type': 'SINGLE_USER'})
+            .populate({ path: 'users', select: 'name'})
+            .lean()
+            .then((resp: any) => {
+                if(resp && resp.length > 0 && resp.some(debt => !!debt.users.find(us => us.name === userName))) {
+                    throw 'You already have virtual user with such name';
+                }
+                return User.create(virtUser);
+            })
+            .then((user: any) => {
+
+                const newUser: any = new User();
+
+                return newUser.generateIdenticon(user.id)
+                    .then(image => {
+                        user.picture = StaticHelper.getImagesPath(req) + image;
+                        return user.save();
+                    })
+                    .then(() => Debts.create(new DebtsModelClass(creatorId, user._id, 'SINGLE_USER', countryCode)));
+            })
+            .then(debt => this.getDebtsByIdHelper(req, res, debt._id))
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
+    /*
+     * DELETE
+     * /debts/single
+     * @param debtsId Id Id of Debts you want to delete
+     */
+    deleteSingleDebt = (req: any, res: Response) => {
+        req.assert('id', 'Debts Id is not valid').notEmpty();
+
+        const errors = req.validationErrors();
+
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
         }
 
-        debts.statusAcceptor = debts.users.find(user => user.toString() != userId);
-        debts.status = 'DELETE_AWAITING';
+        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
+        const userId = req.user.id;
 
-        debts.save((err, updatedDebts) => {
-            if (err) {
-                return errorHandler(req, res, err);
-            }
-            return getAllUserDebts(req, res);
-        });
-    });
-};
+        return Debts
+            .findOneAndRemove({_id: debtsId, users: {$in: [userId]}, type: 'SINGLE_USER'})
+            .then((resp: any) => {
+                if(!resp) {
+                    throw 'Debts not found';
+                }
+
+                const virtualUserId = resp.users.find(user => user.toString() != userId);
+
+                return User.findByIdAndRemove(virtualUserId);
+            })
+            .then((user: any) => {
+                if(!user) {
+                    throw 'User not found';
+                }
+
+                const imageName = user.picture.match(/\/images\/.*/);
+
+                fs.unlink('public' + imageName);
+
+                return this.getAllUserDebts(req, res);
+            })
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
+    /*
+     * POST
+     * /debts/creation
+     * @param debtsId Id Id of debts you want to accept
+     */
+    acceptCreation = (req: any, res: Response) => {
+        req.assert('id', 'Debts Id is not valid').notEmpty();
+
+        const errors = req.validationErrors();
+
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
+        }
+
+        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
+        const userId = req.user.id;
+
+        return Debts
+            .findOneAndUpdate(
+                { _id: debtsId, status: 'CREATION_AWAITING', statusAcceptor: userId },
+                { status: 'UNCHANGED', statusAcceptor: null }
+            )
+            .then((resp: DebtsModel) => {
+                if(!resp) {
+                    throw 'Debts not found';
+                }
+
+                return this.getAllUserDebts(req, res);
+            })
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
+    /*
+     * DELETE
+     * /debts/creation
+     * @param debtsId Id Id of debts you want to decline
+     */
+    declineCreation = (req: any, res: Response) => {
+        req.assert('id', 'Debts Id is not valid').notEmpty();
+
+        const errors = req.validationErrors();
+
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
+        }
+
+        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
+        const userId = req.user.id;
+
+        return Debts
+            .findOneAndRemove({ _id: debtsId, status: 'CREATION_AWAITING', statusAcceptor: userId })
+            .then((resp: DebtsModel) => {
+                if(!resp) {
+                    throw 'Debts not found';
+                }
+
+                return this.getAllUserDebts(req, res);
+            })
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
+    /*
+     * GET
+     * /debts
+     */
+    getAllUserDebts = (req: any, res: Response) => {
+        const userId = req.user.id;
+
+        return Debts
+            .find({'users': {'$all': [userId]}})
+            .populate({ path: 'users', select: 'name picture'})
+            .sort({status: 1, updatedAt: -1})
+            .lean()
+            .exec((err, debts: any) => {
+                if(err) {
+                    throw err;
+                }
+
+                if(debts) {
+                    const debtsArray = debts.map(debt => this.formatDebt(debt, userId, false));
+
+                    res.json(new DebtsListClass(debtsArray, userId));
+                }
+            })
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
+    /*
+    * GET
+    * /debts/:id
+    */
+    getDebtsById = (req: any, res: Response) => {
+        return this.getDebtsByIdHelper(req, res);
+    };
+
+    /*
+     * PUT
+     * /debts/delete-request
+     * @param debtsId Id Id of debts you want to delete
+     */
+    requestDebtsDelete = (req, res) => {
+        req.assert('id', 'Debts Id is not valid').notEmpty();
+
+        const errors = req.validationErrors();
+
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
+        }
+
+        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
+        const userId = req.user.id;
+
+        return Debts
+            .findOne({ _id: debtsId, users: {'$all': [userId]} })
+            .then((debts: any) => {
+
+                if(debts.statusAcceptor !== null || debts.status !== 'UNCHANGED') {
+                    throw 'Cannot modify debts that need acceptance';
+                }
+
+                debts.statusAcceptor = debts.users.find(user => user.toString() != userId);
+                debts.status = 'DELETE_AWAITING';
+
+                return debts.save();
+            })
+            .then(() => this.getAllUserDebts(req, res))
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
 
 
-/*
- * DELETE
- * /debts/delete-request
- * @param debtsId Id Id of debts you want to accept delete
- */
-export let requestDebtsDeleteAccept = (req, res) => {
-    req.assert('id', 'Debts Id is not valid').notEmpty();
+    /*
+     * DELETE
+     * /debts/delete-request
+     * @param debtsId Id Id of debts you want to accept delete
+     */
+    requestDebtsDeleteAccept = (req, res) => {
+        req.assert('id', 'Debts Id is not valid').notEmpty();
 
-    const errors = req.validationErrors();
+        const errors = req.validationErrors();
 
-    if (errors) {
-        return errorHandler(req, res, errors);
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
+        }
+
+        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
+        const userId = req.user.id;
+
+        return Debts
+            .findOneAndRemove({ _id: debtsId, status: 'DELETE_AWAITING', statusAcceptor: userId })
+            .then((resp: DebtsModel) => {
+                if(!resp) {
+                    throw 'Debts not found';
+                }
+
+                return this.getAllUserDebts(req, res);
+            })
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
+
+    /*
+     * POST
+     * /debts/delete-request
+     * @param debtsId Id Id of debts you want to decline delete
+     */
+    requestDebtsDeleteDecline = (req, res) => {
+        req.assert('id', 'Debts Id is not valid').notEmpty();
+
+        const errors = req.validationErrors();
+
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
+        }
+
+        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
+        const userId = req.user.id;
+
+        return Debts
+            .findOneAndUpdate(
+                { _id: debtsId, status: 'DELETE_AWAITING', statusAcceptor: userId },
+                {status: 'UNCHANGED', statusAcceptor: null}
+            )
+            .then((resp: DebtsModel) => {
+                if(!resp) {
+                    throw 'Debts not found';
+                }
+
+                return this.getAllUserDebts(req, res);
+            })
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
+    getDebtsByIdHelper = (req, res, debts?: Id) => {
+        const debtsId = debts ? debts : (req.swagger ? req.swagger.params.id.value : req.params.id);
+        const userId = req.user.id;
+
+        return Debts.findById(debtsId)
+            .populate({
+                path: 'moneyOperations',
+                select: 'date moneyAmount moneyReceiver description status statusAcceptor',
+                options: { sort: { 'date': -1 } }
+            })
+            .populate({ path: 'users', select: 'name picture'})
+            .lean()
+            .exec((err, debt: any) => {
+                if(err) {
+                    return this.errorHandler.errorHandler(req, res, err);
+                }
+
+                if(!debt) {
+                    return this.errorHandler.errorHandler(req, res, 'Debts with id ' + debtsId + ' is not found');
+                }
+
+                if(debt) {
+                    res.json(this.formatDebt(debt, userId, true));
+                }
+            })
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
+
+
+    private formatDebt(debt, userId, saveOperations: boolean) {
+        const newDebt = debt;
+        newDebt.user = newDebt.users.find(user => user._id.toString() != userId);
+        newDebt.user.id = newDebt.user._id;
+        newDebt.id = debt._id;
+        delete newDebt._id;
+        delete newDebt.user._id;
+        delete newDebt.users;
+        delete newDebt.__v;
+        delete newDebt.createdAt;
+        delete newDebt.updatedAt;
+
+        if(saveOperations) {
+            newDebt.moneyOperations.forEach(operation => {
+                operation.id = operation._id;
+                delete operation._id;
+            });
+        } else {
+            delete newDebt.moneyOperations;
+        }
+
+        return newDebt;
     }
+}
 
-    const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
-    const userId = req.user.id;
-
-    return Debts.findOneAndRemove({ _id: debtsId, status: 'DELETE_AWAITING', statusAcceptor: userId })
-        .then((resp: DebtsModel) => {
-            if(!resp) {
-                return errorHandler(req, res, 'Debts not found');
-            }
-
-            return getAllUserDebts(req, res);
-        }).catch(err => errorHandler(req, res, err));
-};
-
-
-/*
- * POST
- * /debts/delete-request
- * @param debtsId Id Id of debts you want to decline delete
- */
-export let requestDebtsDeleteDecline = (req, res) => {
-    req.assert('id', 'Debts Id is not valid').notEmpty();
-
-    const errors = req.validationErrors();
-
-    if (errors) {
-        return errorHandler(req, res, errors);
-    }
-
-    const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
-    const userId = req.user.id;
-
-    return Debts.findOneAndUpdate({ _id: debtsId, status: 'DELETE_AWAITING', statusAcceptor: userId }, {status: 'UNCHANGED', statusAcceptor: null})
-        .then((resp: DebtsModel) => {
-            if(!resp) {
-                return errorHandler(req, res, 'Debts not found');
-            }
-
-            return getAllUserDebts(req, res);
-        }).catch(err => errorHandler(req, res, err));
-};
-
-export let getDebtsByIdHelper = (req, res, debts?: Id) => {
-    const debtsId = debts ? debts : (req.swagger ? req.swagger.params.id.value : req.params.id);
-    const userId = req.user.id;
-
-    return Debts.findById(debtsId)
-        .populate({
-            path: 'moneyOperations',
-            select: 'date moneyAmount moneyReceiver description status statusAcceptor',
-            options: { sort: { 'date': -1 } }
-        })
-        .populate({ path: 'users', select: 'name picture'})
-        .lean()
-        .exec((err, debt: any) => {
-            if(err) {
-                return errorHandler(req, res, err);
-            }
-
-            if(!debt) {
-                return errorHandler(req, res, 'Debts with id ' + debtsId + ' is not found');
-            }
-
-            if(debt) {
-                const newDebt = debt;
-                newDebt.user = newDebt.users.find(user => user._id.toString() != userId);
-                newDebt.user.id = newDebt.user._id;
-                newDebt.id = debt._id;
-                delete newDebt._id;
-                delete newDebt.user._id;
-                delete newDebt.users;
-                delete newDebt.__v;
-                delete newDebt.createdAt;
-                delete newDebt.updatedAt;
-
-                newDebt.moneyOperations.forEach(operation => {
-                    operation.id = operation._id;
-                    delete operation._id;
-                });
-
-                res.json(newDebt);
-            }
-        }).catch(err => errorHandler(req, res, err));
-};

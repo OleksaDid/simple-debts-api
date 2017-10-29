@@ -2,189 +2,225 @@ import * as passport from 'passport';
 import * as FacebookTokenStrategy from 'passport-facebook-token';
 import * as jwt from 'jsonwebtoken';
 import * as passportJWT from 'passport-jwt';
-import * as _ from 'lodash';
 import * as LocalStrategy from 'passport-local';
 
 import { default as User, SendUser, UserModel } from '../models/User';
-import { Request, Response, NextFunction } from 'express';
-
-const ExtractJwt = passportJWT.ExtractJwt;
-const JwtStrategy = passportJWT.Strategy;
+import { StaticHelper } from './static';
 
 
 
-passport.serializeUser<any, any>((user, done) => {
-  done(undefined, user.id);
-});
+export class PassportHelper {
+    private ExtractJwt = passportJWT.ExtractJwt;
+    private JwtStrategy = passportJWT.Strategy;
 
-passport.deserializeUser((id, done) => {
-  User.findById(id, (err, user) => {
-    done(err, user);
-  });
-});
+    private emailPattern = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    private emailNamePattern = /^.*(?=@)/;
 
-export function verifyJWT() {
-    passport.use(new JwtStrategy({
-            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-            secretOrKey: process.env.JWT_SECRET
-        },
-        function(jwt_payload, done) {
-            User.findById(jwt_payload.id).exec()
-                .then((user: UserModel) => {
-                    if (user) {
-                        done(null, new SendUser(user._id, user.name, user.picture));
-                    } else {
-                        done('Invalid JWT Token');
-                    }
-                })
-                .catch(err => done(err));
-        }));
-}
+    private JWTStrategyOptions = {
+        jwtFromRequest: this.ExtractJwt.fromAuthHeaderAsBearerToken(),
+        secretOrKey: process.env.JWT_SECRET
+    };
 
-// Facebook strategy
-export function verifyFbToken() {
-  passport.use(new FacebookTokenStrategy({
+    private localStrategyOptions = {
+        // by default, local strategy uses username and password, we will override with email
+        usernameField : 'email',
+        passwordField : 'password',
+        passReqToCallback : true // allows us to pass back the entire request to the callback
+    };
+
+    private facebookTokenStrategyOptions = {
         clientID: process.env.FACEBOOK_ID,
         clientSecret: process.env.FACEBOOK_SECRET
-      },
-      function(accessToken, refreshToken, profile, done) {
-        User.findOne({'facebook': profile.id}).exec()
-            .then((user: any) => {
+    };
 
-             if(!user) {
-                 user = new User();
-             }
+    private passwordLengthRestrictions = {
+      min: 6,
+      max: 20
+    };
 
-              user.email = profile._json.email;
-              user.name = `${profile.name.givenName} ${profile.name.familyName}`;
-              user.picture = `https://graph.facebook.com/${profile.id}/picture?type=large`;
-              user.facebook = profile.id;
-              // TODO: don't set tokens as an empty array when we will have more auth methods
-              user.tokens = [];
-              user.tokens.push({ kind: 'facebook', accessToken });
-              user.save((err: Error) => {
-                  const payload = {id: user.id};
-                  const token = jwt.sign(payload, process.env.JWT_SECRET);
-                  done(null, {user: new SendUser(user.id, user.name, user.picture), token});
-              });
-            })
-            .catch(err => done(err));
-      }));
-}
 
-// local strategy
-export function localAuth() {
-    passport.use('local-signup', new LocalStrategy({
-            // by default, local strategy uses username and password, we will override with email
-            usernameField : 'email',
-            passwordField : 'password',
-            passReqToCallback : true // allows us to pass back the entire request to the callback
-        },
-        function(req, email, password, done) {
 
-            // asynchronous
-            // User.findOne wont fire unless data is sent back
-            process.nextTick(function() {
+    constructor() {
+        this.setupSerializer();
+        this.setupDeserializer();
+    }
 
-                User.findOne({ 'email' :  email }, function(err, user: any) {
-                    // if there are any errors, return the error
-                    if (err) {
-                        return done(err);
-                    }
 
-                    // check to see if theres already a user with that email
-                    if (user) {
-                        return done('User with this email already exists');
-                    }
 
-                    const emailPattern = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    verifyJWT(): void {
+        passport.use(new this.JwtStrategy(
+            this.JWTStrategyOptions,
+            (jwt_payload, done) => {
+                User.findById(jwt_payload.id).exec()
+                    .then((user: UserModel) => {
+                        if (user) {
+                            done(null, new SendUser(user._id, user.name, user.picture));
+                        } else {
+                            done('Invalid JWT Token');
+                        }
+                    })
+                    .catch(err => done(err));
+            }));
+    }
 
-                    if(!email.match(emailPattern)) {
-                        return done('Email is wrong');
-                    }
+    // Facebook strategy
+    verifyFbToken(): void {
+        passport.use(new FacebookTokenStrategy(
+            this.facebookTokenStrategyOptions,
+            (accessToken, refreshToken, profile, done) => {
+                User.findOne({'facebook': profile.id}).exec()
+                    .then((user: any) => {
 
-                    if(password.length < 6 || password.length > 20) {
-                        return done('Invalid password length');
-                    }
+                        if(!user) {
+                            user = new User();
+                        }
 
-                    // if there is no user with that email
-                    // create the user
-                    const newUser: any  = new User();
+                        user.email = profile._json.email;
+                        user.name = `${profile.name.givenName} ${profile.name.familyName}`;
+                        user.picture = `https://graph.facebook.com/${profile.id}/picture?type=large`;
+                        user.facebook = profile.id;
 
-                    // set the user's local credentials
-                    newUser.email    = email;
-                    newUser.password = newUser.generateHash(password);
-
-                    // save the user
-                    newUser.save(function(err) {
-                        if (err)
-                            throw err;
-
-                        User.findOne({email: email}, (err, user: any) => {
+                        user.tokens = [];
+                        user.tokens.push({ kind: 'facebook', accessToken });
+                        user.save(err => {
                             if (err) {
                                 return done(err);
                             }
 
-                            const newUser: any = new User();
-
-                            newUser.generateIdenticon(user.id)
-                                .then(image => {
-                                    user.picture = req.protocol + '://' + req.get('host') + '/images/' + image;
-                                    user.name = email.match(/^.*(?=@)/)[0];
-
-                                    user.save(function(err) {
-                                        if(err) {
-                                            throw err;
-                                        }
-
-                                        const payload = {id: user.id};
-                                        const token = jwt.sign(payload, process.env.JWT_SECRET);
-                                        return done(null, {user: new SendUser(user._id, user.name, user.picture), token});
-                                    });
-                                })
-                                .catch(err => done(err));
+                            this.returnSendUser(user, done);
                         });
+                    })
+                    .catch(err => done(err));
+            }));
+    }
+
+    // local strategy
+    localAuth(): void {
+        passport.use('local-signup', new LocalStrategy(
+            this.localStrategyOptions,
+            (req, email, password, done) => {
+
+                // asynchronous
+                // User.findOne wont fire unless data is sent back
+                process.nextTick(() => {
+
+                    User.findOne({ 'email' :  email }, (err, user: any) => {
+                        // if there are any errors, return the error
+                        if (err) {
+                            return done(err);
+                        }
+
+                        // check to see if theres already a user with that email
+                        if (user) {
+                            return done('User with this email already exists');
+                        }
+
+                        if(!email.match(this.emailPattern)) {
+                            return done('Email is wrong');
+                        }
+
+                        if(
+                            password.length < this.passwordLengthRestrictions.min ||
+                            password.length > this.passwordLengthRestrictions.max
+                        ) {
+                            return done('Invalid password length');
+                        }
+
+                        // if there is no user with that email
+                        // create the user
+                        const newUser: any  = new User();
+
+                        // set the user's local credentials
+                        newUser.email    = email;
+                        newUser.password = newUser.generateHash(password);
+
+                        // save the user
+                        newUser.save(err => {
+                            if (err) {
+                                return done(err);
+                            }
+
+                            User.findOne({email}, (err, user: any) => {
+                                if (err) {
+                                    return done(err);
+                                }
+
+                                const newUser: any = new User();
+
+                                newUser.generateIdenticon(user.id)
+                                    .then(image => {
+                                        user.picture = StaticHelper.getImagesPath(req) + image;
+                                        user.name = email.match(this.emailNamePattern)[0];
+
+                                        user.save(err => {
+                                            if(err) {
+                                                throw err;
+                                            }
+
+                                            this.returnSendUser(user, done);
+                                        });
+                                    })
+                                    .catch(err => done(err));
+                            });
+                        });
+
                     });
 
                 });
+            }));
+    }
 
+    localLogin(): void {
+        passport.use('local-login', new LocalStrategy(
+            this.localStrategyOptions,
+            (req, email, password, done) => { // callback with email and password from our form
+
+                // find a user whose email is the same as the forms email
+                // we are checking to see if the user trying to login already exists
+                User.findOne({ 'email' :  email }, (err, user: any) => {
+                    // if there are any errors, return the error before anything else
+                    if (err) {
+                        return done(err);
+                    }
+
+                    // if no user is found, return the message
+                    if (!user) {
+                        return done('No user is found');
+                    }
+
+                    // if the user is found but the password is wrong
+                    if (!user.validPassword(password)) {
+                        return done('Wrong password');
+                    }
+
+                    // all is well, return successful user
+                    this.returnSendUser(user, done);
+                });
+
+            }));
+    }
+
+
+
+    private returnSendUser(user, done): void {
+        const payload = {id: user.id};
+        const token = jwt.sign(payload, process.env.JWT_SECRET);
+        const sendUser = {user: new SendUser(user._id, user.name, user.picture), token};
+        done(null, sendUser);
+    }
+
+    private setupSerializer(): void {
+        passport.serializeUser<any, any>((user, done) => {
+            done(undefined, user.id);
+        });
+    }
+
+    private setupDeserializer(): void {
+        passport.deserializeUser((id, done) => {
+            User.findById(id, (err, user) => {
+                done(err, user);
             });
-        }));
-}
-
-export function localLogin() {
-    passport.use('local-login', new LocalStrategy({
-            // by default, local strategy uses username and password, we will override with email
-            usernameField : 'email',
-            passwordField : 'password',
-            passReqToCallback : true // allows us to pass back the entire request to the callback
-        },
-        function(req, email, password, done) { // callback with email and password from our form
-
-            // find a user whose email is the same as the forms email
-            // we are checking to see if the user trying to login already exists
-            User.findOne({ 'email' :  email }, function(err, user: any) {
-                // if there are any errors, return the error before anything else
-                if (err) {
-                    return done(err);
-                }
-
-                // if no user is found, return the message
-                if (!user) {
-                    return done('No user is found');
-                }
-
-                // if the user is found but the password is wrong
-                if (!user.validPassword(password)) {
-                    return done('Wrong password');
-                }
-
-                // all is well, return successful user
-                const payload = {id: user.id};
-                const token = jwt.sign(payload, process.env.JWT_SECRET);
-                return done(null, {user: new SendUser(user._id, user.name, user.picture), token});
-            });
-
-        }));
+        });
+    }
 }
 

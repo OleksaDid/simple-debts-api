@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const app = require('./app');
+const app_1 = require("./app");
 const SwaggerExpress = require("swagger-express-mw");
+const app = new app_1.App().application;
 const config = {
     appRoot: __dirname // required config
 };

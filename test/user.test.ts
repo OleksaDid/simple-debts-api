@@ -1,5 +1,7 @@
+import {App} from "../src/app";
+
 const request = require('supertest');
-const app = require('../src/app');
+const app = new App().application;
 
 
 const credentials = {

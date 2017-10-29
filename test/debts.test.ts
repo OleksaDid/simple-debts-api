@@ -2,9 +2,10 @@ import {default as Debts, DebtsListClass, DebtsModelClass} from "../src/api/mode
 import * as mongoose from 'mongoose';
 import User from "../src/api/models/User";
 import * as fs from 'fs';
+import {App} from "../src/app";
 
 const request = require('supertest');
-const app = require('../src/app');
+const app = new App().application;
 
 
 const credentials = {
