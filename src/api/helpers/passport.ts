@@ -99,72 +99,56 @@ export class PassportHelper {
         passport.use('local-signup', new LocalStrategy(
             this.localStrategyOptions,
             (req, email, password, done) => {
+                let createdUser;
 
                 // asynchronous
                 // User.findOne wont fire unless data is sent back
                 process.nextTick(() => {
 
-                    User.findOne({ 'email' :  email }, (err, user: any) => {
-                        // if there are any errors, return the error
-                        if (err) {
-                            return done(err);
-                        }
-
-                        // check to see if theres already a user with that email
-                        if (user) {
-                            return done('User with this email already exists');
-                        }
-
-                        if(!email.match(this.emailPattern)) {
-                            return done('Email is wrong');
-                        }
-
-                        if(
-                            password.length < this.passwordLengthRestrictions.min ||
-                            password.length > this.passwordLengthRestrictions.max
-                        ) {
-                            return done('Invalid password length');
-                        }
-
-                        // if there is no user with that email
-                        // create the user
-                        const newUser: any  = new User();
-
-                        // set the user's local credentials
-                        newUser.email    = email;
-                        newUser.password = newUser.generateHash(password);
-
-                        // save the user
-                        newUser.save(err => {
-                            if (err) {
-                                return done(err);
+                    User.findOne({ 'email' :  email })
+                        .then((user: any) => {
+                            // check to see if theres already a user with that email
+                            if (user) {
+                                throw 'User with this email already exists';
                             }
 
-                            User.findOne({email}, (err, user: any) => {
-                                if (err) {
-                                    return done(err);
-                                }
+                            if(!email.match(this.emailPattern)) {
+                                throw 'Email is wrong';
+                            }
 
-                                const newUser: any = new User();
+                            if(
+                                password.length < this.passwordLengthRestrictions.min ||
+                                password.length > this.passwordLengthRestrictions.max
+                            ) {
+                                throw 'Invalid password length';
+                            }
 
-                                newUser.generateIdenticon(user.id)
-                                    .then(image => {
-                                        user.picture = StaticHelper.getImagesPath(req) + image;
-                                        user.name = email.match(this.emailNamePattern)[0];
+                            // if there is no user with that email
+                            // create the user
+                            const newUser: any  = new User();
 
-                                        user.save(err => {
-                                            if(err) {
-                                                throw err;
-                                            }
+                            // set the user's local credentials
+                            newUser.email    = email;
+                            newUser.password = newUser.generateHash(password);
 
-                                            this.returnSendUser(user, done);
-                                        });
-                                    })
-                                    .catch(err => done(err));
-                            });
-                        });
+                            // save the user
+                            return newUser.save();
+                        })
+                        .then(() => User.findOne({email}))
+                        .then((user: any) => {
+                            const newUser: any = new User();
+                            createdUser = user;
 
-                    });
+                            return newUser.generateIdenticon(user.id);
+                        })
+                        .then(image => {
+                            createdUser.picture = StaticHelper.getImagesPath(req) + image;
+                            createdUser.name = email.match(this.emailNamePattern)[0];
+
+                            return createdUser.save();
+                        })
+                        .then(() => this.returnSendUser(createdUser, done))
+                        .catch(err => done(err));
 
                 });
             }));
