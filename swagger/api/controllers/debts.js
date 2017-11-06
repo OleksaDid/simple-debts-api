@@ -153,7 +153,7 @@ class DebtsController {
             const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
             const userId = req.user.id;
             return Debts_1.default
-                .findOneAndRemove({ _id: debtsId, status: 'CREATION_AWAITING', statusAcceptor: userId })
+                .findOneAndRemove({ _id: debtsId, status: 'CREATION_AWAITING', users: { $in: [userId] } })
                 .then((resp) => {
                 if (!resp) {
                     throw 'Debts not found';

@@ -114,7 +114,7 @@ class OperationsController {
             const operationId = req.swagger ? req.swagger.params.id.value : req.params.id;
             const userId = req.user.id;
             return MoneyOperation_1.default
-                .findOneAndUpdate({ _id: operationId, statusAcceptor: new this.ObjectId(userId) }, { status: 'UNCHANGED', statusAcceptor: null })
+                .findOneAndUpdate({ _id: operationId, statusAcceptor: new this.ObjectId(userId), status: 'CREATION_AWAITING' }, { status: 'UNCHANGED', statusAcceptor: null })
                 .then((resp) => {
                 if (!resp) {
                     throw 'Operation not found';
@@ -151,13 +151,32 @@ class OperationsController {
             }
             const operationId = req.swagger ? req.swagger.params.id.value : req.params.id;
             const userId = req.user.id;
-            return MoneyOperation_1.default
-                .findOneAndRemove({ _id: operationId, statusAcceptor: new this.ObjectId(userId) })
-                .then((resp) => {
-                if (!resp) {
-                    throw 'Operation not found';
+            let debtObject;
+            return MoneyOperation_1.default.findOne({ _id: operationId, status: 'CREATION_AWAITING' })
+                .then((operation) => {
+                if (!operation) {
+                    throw 'Operation is not found';
                 }
-                return Debts_1.default.findByIdAndUpdate(resp.debtsId, { status: 'UNCHANGED', statusAcceptor: null });
+                return Debts_1.default
+                    .findOneAndUpdate({ _id: operation.debtsId, users: { $in: [userId] }, type: 'MULTIPLE_USERS' }, { '$pull': { 'moneyOperations': operationId } })
+                    .populate({ path: 'moneyOperations', select: 'status' });
+            })
+                .then(debt => {
+                if (!debt) {
+                    throw 'You don\'t have permissions to delete this operation';
+                }
+                debtObject = debt;
+                return MoneyOperation_1.default
+                    .findByIdAndRemove(operationId);
+            })
+                .then(() => {
+                if (debtObject.moneyOperations
+                    .filter(operation => operation.id.toString() !== operationId)
+                    .every(operation => operation.status === 'UNCHANGED')) {
+                    debtObject.status = 'UNCHANGED';
+                    debtObject.statusAcceptor = null;
+                }
+                return debtObject.save();
             })
                 .then(debts => this.debtsController.getDebtsByIdHelper(req, res, debts._id))
                 .catch(err => this.errorHandler.errorHandler(req, res, err));

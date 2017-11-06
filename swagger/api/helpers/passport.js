@@ -75,24 +75,22 @@ class PassportHelper {
     // local strategy
     localAuth() {
         passport.use('local-signup', new LocalStrategy(this.localStrategyOptions, (req, email, password, done) => {
+            let createdUser;
             // asynchronous
             // User.findOne wont fire unless data is sent back
             process.nextTick(() => {
-                User_1.default.findOne({ 'email': email }, (err, user) => {
-                    // if there are any errors, return the error
-                    if (err) {
-                        return done(err);
-                    }
+                User_1.default.findOne({ 'email': email })
+                    .then((user) => {
                     // check to see if theres already a user with that email
                     if (user) {
-                        return done('User with this email already exists');
+                        throw 'User with this email already exists';
                     }
                     if (!email.match(this.emailPattern)) {
-                        return done('Email is wrong');
+                        throw 'Email is wrong';
                     }
                     if (password.length < this.passwordLengthRestrictions.min ||
                         password.length > this.passwordLengthRestrictions.max) {
-                        return done('Invalid password length');
+                        throw 'Invalid password length';
                     }
                     // if there is no user with that email
                     // create the user
@@ -101,30 +99,21 @@ class PassportHelper {
                     newUser.email = email;
                     newUser.password = newUser.generateHash(password);
                     // save the user
-                    newUser.save(err => {
-                        if (err) {
-                            return done(err);
-                        }
-                        User_1.default.findOne({ email }, (err, user) => {
-                            if (err) {
-                                return done(err);
-                            }
-                            const newUser = new User_1.default();
-                            newUser.generateIdenticon(user.id)
-                                .then(image => {
-                                user.picture = static_1.StaticHelper.getImagesPath(req) + image;
-                                user.name = email.match(this.emailNamePattern)[0];
-                                user.save(err => {
-                                    if (err) {
-                                        throw err;
-                                    }
-                                    this.returnSendUser(user, done);
-                                });
-                            })
-                                .catch(err => done(err));
-                        });
-                    });
-                });
+                    return newUser.save();
+                })
+                    .then(() => User_1.default.findOne({ email }))
+                    .then((user) => {
+                    const newUser = new User_1.default();
+                    createdUser = user;
+                    return newUser.generateIdenticon(user.id);
+                })
+                    .then(image => {
+                    createdUser.picture = static_1.StaticHelper.getImagesPath(req) + image;
+                    createdUser.name = email.match(this.emailNamePattern)[0];
+                    return createdUser.save();
+                })
+                    .then(() => this.returnSendUser(createdUser, done))
+                    .catch(err => done(err));
             });
         }));
     }
