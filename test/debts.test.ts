@@ -644,17 +644,6 @@ describe('DELETE /debts/:id/creation', () => {
             });
     });
 
-    it('should return an error if not statusAcceptor tries to accept debts', () => {
-
-        return request(app)
-            .delete('/debts/' + multipleDebt.id + '/creation')
-            .set('Authorization', 'Bearer ' + token)
-            .expect(400)
-            .then(resp => {
-                expect(resp.body).toHaveProperty('error');
-            });
-    });
-
     it('should return all debts', () => {
         expect(multipleDebt.status).toBe('CREATION_AWAITING');
 
@@ -692,6 +681,38 @@ describe('DELETE /debts/:id/creation', () => {
 
     it('should delete debt from db', () => {
         return Debts.findById(multipleDebt.id)
+            .then((resp) => expect(resp).not.toBeTruthy());
+    });
+
+    it('can be deleted by user who\'s created Debts', () => {
+        return request(app)
+            .put('/debts')
+            .send({userId: anotherUser.id, countryCode: 'UA'})
+            .set('Authorization', 'Bearer ' + token)
+            .expect(200)
+            .then(resp => multipleDebt = resp.body)
+            .then(() => request(app)
+                .delete('/debts/' + multipleDebt.id + '/creation')
+                .set('Authorization', 'Bearer ' + token)
+                .expect(200))
+            .then(resp => {
+                const debts = resp.body;
+                const unchangedDebt = JSON.parse(JSON.stringify(multipleDebt));
+                unchangedDebt.status = 'UNCHANGED';
+                unchangedDebt.statusAcceptor = null;
+                unchangedDebt.user = user;
+                delete unchangedDebt.moneyOperations;
+
+                expect(debts).toHaveProperty('debts');
+                expect(Array.isArray(debts.debts)).toBeTruthy();
+                debts.debts.forEach(debt => checkIsObjectMatchesDebtsModel(debt, unchangedDebt, false));
+
+                expect(debts).toHaveProperty('summary');
+                expect(debts.summary).toHaveProperty('toGive', 0);
+                expect(debts.summary).toHaveProperty('toTake', 0);
+
+                return Debts.findById(multipleDebt.id)
+            })
             .then((resp) => expect(resp).not.toBeTruthy());
     });
 });

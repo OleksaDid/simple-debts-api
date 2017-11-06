@@ -197,7 +197,7 @@ export class DebtsController {
         const userId = req.user.id;
 
         return Debts
-            .findOneAndRemove({ _id: debtsId, status: 'CREATION_AWAITING', statusAcceptor: userId })
+            .findOneAndRemove({ _id: debtsId, status: 'CREATION_AWAITING', users: {$in: [userId]} })
             .then((resp: DebtsModel) => {
                 if(!resp) {
                     throw 'Debts not found';
