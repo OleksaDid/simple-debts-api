@@ -112,6 +112,7 @@ class App {
         v1.delete('/debts/:id/creation', this.authController.checkJWTAccess, this.debtsController.declineCreation);
         v1.put('/debts/single', this.authController.checkJWTAccess, this.debtsController.createSingleDebt);
         v1.delete('/debts/single/:id', this.authController.checkJWTAccess, this.debtsController.deleteSingleDebt);
+        v1.post('/debts/single/:id/i_love_lsd', this.authController.checkJWTAccess, this.debtsController.acceptUserDeletedStatus);
         // MONEY OPERATIONS
         v1.put('/operation', this.authController.checkJWTAccess, this.operationsController.createOperation);
         v1.delete('/operation/:id', this.authController.checkJWTAccess, this.operationsController.deleteOperation);

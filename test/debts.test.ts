@@ -875,8 +875,164 @@ describe('DELETE /debts/:id', () => {
         deletedUserDebt.moneyOperations
             .every(operation => !(operation.statusAcceptor.toString() === user.id.toString() && operation.status !== 'UNCHANGED');
     });
+});
 
+describe('POST /debts/single/:id/i_love_lsd', () => {
 
+    beforeAll((done) => {
+        request(app)
+            .put('/debts')
+            .send({userId: anotherUser.id, countryCode: 'UA'})
+            .set('Authorization', 'Bearer ' + token)
+            .then(resp => multipleDebt = resp.body)
+            .then(() => {
+                const operationPayload = {
+                    debtsId: multipleDebt.id,
+                    moneyAmount: 300,
+                    moneyReceiver: user.id,
+                    description: 'test'
+                };
+
+                return request(app)
+                    .put('/operation')
+                    .send(operationPayload)
+                    .set('Authorization', 'Bearer ' + token)
+                    .expect(200);
+            })
+            .then(() => {
+                return request(app)
+                    .delete('/debts/' + multipleDebt.id)
+                    .set('Authorization', 'Bearer ' + token);
+            })
+            .then(() => {
+                return request(app)
+                    .get('/debts/' + multipleDebt.id)
+                    .set('Authorization', 'Bearer ' + anotherUserToken);
+            })
+            .then(resp => {
+                multipleDebt = resp.body;
+                done();
+            });
+    });
+
+    it('should return 401 error if token is invalid', () => {
+        const promises = [];
+
+        promises.push(request(app).post('/debts/single/' + multipleDebt.id + '/i_love_lsd'));
+        promises.push(request(app).post('/debts/single/' + multipleDebt.id + '/i_love_lsd').set('Authorization', 'Bearer '));
+        promises.push(request(app).post('/debts/single/' + multipleDebt.id + '/i_love_lsd').set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
+
+        return Promise.all(promises).then(responses => {
+            responses.forEach(resp => {
+                expect(resp.statusCode).toBe(401);
+            });
+        });
+    });
+
+    it('should return 400 or 404 if no param is set', () => {
+        const promises = [];
+        const params = [
+            '',
+            '/',
+            ' ',
+            null,
+            undefined
+        ];
+
+        params.forEach(param => {
+            promises.push(request(app).post('/debts/single/' + param + '/i_love_lsd').set('Authorization', 'Bearer ' + token));
+        });
+
+        return Promise.all(promises).then(responses => {
+            responses.forEach(resp => {
+                expect(resp.statusCode).toBeGreaterThanOrEqual(400);
+                expect(resp.statusCode).toBeLessThanOrEqual(404);
+            });
+        });
+    });
+
+    it('should return 400 if invalid param is set', () => {
+
+        return request(app)
+            .post('/debts/single/' + 'hgfdtryfugki7' + '/i_love_lsd')
+            .set('Authorization', 'Bearer ' + token)
+            .expect(400)
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('should reject user if he is not a user of this Debt entity', () => {
+
+        return request(app)
+            .post('/debts/single/' + multipleDebt.id + '/i_love_lsd')
+            .set('Authorization', 'Bearer ' + thirdUserToken)
+            .expect(400)
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('should change Debt status from USER_DELETE to CHANGE_AWAITING if some operations don\'t have UNCHANGED status', () => {
+
+        return request(app)
+            .post('/debts/single/' + multipleDebt.id + '/i_love_lsd')
+            .set('Authorization', 'Bearer ' + anotherUserToken)
+            .expect(200)
+            .then(resp => {
+                checkIsObjectMatchesDebtsModel(resp.body, multipleDebt, false);
+                expect(resp.body).toHaveProperty('status', 'CHANGE_AWAITING');
+                expect(resp.body).toHaveProperty('statusAcceptor', anotherUser.id);
+            });
+    });
+
+    it('should change Debt status from USER_DELETE to UNCHANGED if all operations have UNCHANGED status', () => {
+
+        return request(app)
+            .put('/debts')
+            .send({userId: anotherUser.id, countryCode: 'UA'})
+            .set('Authorization', 'Bearer ' + token)
+            .then(resp => {
+                multipleDebt = resp.body;
+            })
+            .then(() => {
+                const operationPayload = {
+                    debtsId: multipleDebt.id,
+                    moneyAmount: 300,
+                    moneyReceiver: anotherUser.id,
+                    description: 'test'
+                };
+
+                return request(app)
+                    .put('/operation')
+                    .send(operationPayload)
+                    .set('Authorization', 'Bearer ' + anotherUserToken)
+                    .expect(200);
+            })
+            .then(() => {
+                return request(app)
+                    .delete('/debts/' + multipleDebt.id)
+                    .set('Authorization', 'Bearer ' + token);
+            })
+            .then(() => {
+                return request(app)
+                    .get('/debts/' + multipleDebt.id)
+                    .set('Authorization', 'Bearer ' + anotherUserToken);
+            })
+            .then(resp => {
+                multipleDebt = resp.body;
+
+                return request(app)
+                    .post('/debts/single/' + multipleDebt.id + '/i_love_lsd')
+                    .set('Authorization', 'Bearer ' + anotherUserToken)
+                    .expect(200)
+                    .then(resp => {
+                        checkIsObjectMatchesDebtsModel(resp.body, multipleDebt, false);
+                        expect(resp.body).toHaveProperty('status', 'UNCHANGED');
+                        expect(resp.body).toHaveProperty('statusAcceptor', null);
+                    });
+            });
+    });
 });
 
 

@@ -246,8 +246,17 @@ export class DebtsController {
     /*
     * DELETE
     * /debts/:id
+    * Deletes user from MULTIPLE_USERS Debts entity
     */
     deleteMultipleDebts = (req: any, res: Response) => {
+        req.assert('id', 'Debts Id is not valid').notEmpty();
+
+        const errors = req.validationErrors();
+
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
+        }
+
         const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
         const userId = req.user.id;
 
@@ -300,6 +309,47 @@ export class DebtsController {
                 return Promise.all(promises);
             })
             .then(() => this.getAllUserDebts(req, res))
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
+
+    /*
+    * POST /debts/single/:id/i_love_lsd
+    * Changes Debts status from USER_DELETED to UNCHANGED
+    */
+    acceptUserDeletedStatus = (req: any, res: Response) => {
+        req.assert('id', 'Debts Id is not valid').notEmpty();
+
+        const errors = req.validationErrors();
+
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
+        }
+
+        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
+        const userId = req.user.id;
+
+        return Debts
+            .findOne({_id: debtsId, type: 'SINGLE_USER', status: 'USER_DELETED', statusAcceptor: userId})
+            .populate({
+                path: 'moneyOperations',
+                select: 'status'
+            })
+            .then(debt => {
+                if(!debt['moneyOperations'] ||
+                    !debt['moneyOperations'].length ||
+                    debt['moneyOperations'].every(operation => operation.status === 'UNCHANGED')
+                ) {
+                    debt['status'] = 'UNCHANGED';
+                    debt['statusAcceptor'] = null;
+                } else {
+                    debt['status'] = 'CHANGE_AWAITING';
+                    debt['statusAcceptor'] = userId;
+                }
+
+                return debt.save();
+            })
+            .then(() => this.getDebtsByIdHelper(req, res, debtsId))
             .catch(err => this.errorHandler.errorHandler(req, res, err));
     };
 
