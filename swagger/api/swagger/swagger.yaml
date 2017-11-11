@@ -3,13 +3,12 @@ info:
   version: "0.0.2"
   title: Simple Debts API
 # during dev, should point to your local machine
-host: simple-debts.herokuapp.com
+host: simple-debts-dev.herokuapp.com
 # basePath prefixes all resource paths
 basePath: /
 #
 schemes:
   # tip: remove http to make production-grade
-  - http
   - https
 # format of bodies a client can send (Content-Type)
 consumes:
@@ -118,6 +117,35 @@ paths:
             $ref: "#/definitions/ErrorResponse"
       security:
         - jwt: []
+    delete:
+      tags:
+        - debts
+      description: Delete yourself from Debt entity by Id
+      operationId: deleteMultipleDebts
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
   /debts/{id}/creation:
     x-swagger-router-controller: debtsController
     post:
@@ -136,7 +164,9 @@ paths:
         "200":
           description: Success
           schema:
-            $ref: "#/definitions/Debt"
+            type: array
+            items:
+              $ref: "#/definitions/Debt"
         "400":
           description: Error
           schema:
@@ -152,95 +182,6 @@ paths:
         - debts
       description: Declines Debt creation request
       operationId: declineCreation
-      parameters:
-        - in: path
-          required: true
-          name: id
-          description: Id of Debt entity
-          type: string
-          format: id
-      responses:
-        "200":
-          description: Success
-          schema:
-            type: array
-            items:
-              $ref: "#/definitions/Debt"
-        "400":
-          description: Error
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-      security:
-        - jwt: []
-  /debts/{id}/delete_request:
-    x-swagger-router-controller: debtsController
-    put:
-      tags:
-        - debts
-      description: Request deleting of Debt entity
-      operationId: requestDebtsDelete
-      parameters:
-        - in: path
-          required: true
-          name: id
-          description: Id of Debt entity
-          type: string
-          format: id
-      responses:
-        "200":
-          description: Success
-          schema:
-            type: array
-            items:
-              $ref: "#/definitions/Debt"
-        "400":
-          description: Error
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-      security:
-        - jwt: []
-    delete:
-      tags:
-        - debts
-      description: Accept delete request and delete Debt entity
-      operationId: requestDebtsDeleteAccept
-      parameters:
-        - in: path
-          required: true
-          name: id
-          description: Id of Debt entity
-          type: string
-          format: id
-      responses:
-        "200":
-          description: Success
-          schema:
-            type: array
-            items:
-              $ref: "#/definitions/Debt"
-        "400":
-          description: Error
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-      security:
-        - jwt: []
-    post:
-      tags:
-        - debts
-      description: Decline delete request and save Debt entity
-      operationId: requestDebtsDeleteDecline
       parameters:
         - in: path
           required: true
@@ -330,6 +271,35 @@ paths:
             type: array
             items:
               $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /debts/single/{id}/i_love_lsd:
+    x-swagger-router-controller: debtsController
+    post:
+      tags:
+        - debts
+      description: Accepts the fact that another user has been deleted from Debt entity
+      operationId: acceptUserDeletedStatus
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/Debt"
         "400":
           description: Error
           schema:
@@ -709,7 +679,7 @@ definitions:
         description: Used to show currency
       status:
         type: string
-        format: CREATION_AWAITING | UNCHANGED | CHANGE_AWAITING | DELETE_AWAITING
+        format: CREATION_AWAITING | UNCHANGED | CHANGE_AWAITING | USER_DELETED
       statusAcceptor:
         type: string
         format: id | null

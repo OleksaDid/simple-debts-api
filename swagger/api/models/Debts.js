@@ -60,24 +60,24 @@ DebtsAccountType.prototype.cast = function (val) {
     }
     return val;
 };
-mongoose.Schema.Types.DebtsAccountType = DebtsAccountType;
+mongoose.Schema.Types['DebtsAccountType'] = DebtsAccountType;
 function StatusCodeDebts(key, options) {
     mongoose.SchemaType.call(this, key, options, 'StatusCodeDebts');
 }
 StatusCodeDebts.prototype = Object.create(mongoose.SchemaType.prototype);
 StatusCodeDebts.prototype.cast = function (val) {
-    const statuses = ['CREATION_AWAITING', 'UNCHANGED', 'CHANGE_AWAITING', 'DELETE_AWAITING'];
+    const statuses = ['CREATION_AWAITING', 'UNCHANGED', 'CHANGE_AWAITING', 'USER_DELETED'];
     if (statuses.indexOf(val) === -1) {
         throw new Error('StatusCodeDebts: ' + val + ' is not valid');
     }
     return val;
 };
-mongoose.Schema.Types.StatusCodeDebts = StatusCodeDebts;
+mongoose.Schema.Types['StatusCodeDebts'] = StatusCodeDebts;
 const debtsSchema = new mongoose.Schema({
     users: [{ type: mongoose_1.Schema.Types.ObjectId, ref: 'User' }],
-    type: mongoose_1.Schema.Types.DebtsAccountType,
+    type: mongoose_1.Schema.Types['DebtsAccountType'],
     countryCode: String,
-    status: mongoose_1.Schema.Types.StatusCodeDebts,
+    status: mongoose_1.Schema.Types['StatusCodeDebts'],
     statusAcceptor: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User' },
     summary: Number,
     moneyReceiver: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User' },

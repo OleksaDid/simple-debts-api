@@ -1,9 +1,10 @@
 import * as mongoose from "mongoose";
 import MoneyOperation from "../src/api/models/MoneyOperation";
 import Debts from "../src/api/models/Debts";
+import {App} from "../src/app";
 
 const request = require('supertest');
-const app = require('../src/app');
+const app = new App().application;
 
 
 const credentials = {
@@ -569,17 +570,6 @@ describe('DELETE /operation/:id/creation', () => {
             });
     });
 
-    it('should return 400 if no statusAcceptor tries to accept operation', () => {
-
-        return request(app)
-            .delete('/operation/' + newOperation.id + '/creation')
-            .set('Authorization', 'Bearer ' + token)
-            .expect(400)
-            .then(resp => {
-                expect(resp.body).toHaveProperty('error');
-            });
-    });
-
     it('should return 400 if you try to delete accepted operation', () => {
 
         return request(app)
@@ -621,6 +611,29 @@ describe('DELETE /operation/:id/creation', () => {
             .then(resp => {
                 expect(resp).toBe(null);
             });
+    });
+
+    it('can be cancelled by user who\'s created operation', () => {
+        return request(app)
+            .put('/operation')
+            .send(Object.assign({}, operationPayload))
+            .set('Authorization', 'Bearer ' + token)
+            .expect(200)
+            .then(resp => newOperation = resp.body.moneyOperations[0])
+            .then(() => request(app)
+                    .delete('/operation/' + newOperation.id + '/creation')
+                    .set('Authorization', 'Bearer ' + token)
+                    .expect(200))
+            .then(resp => {
+                expect(resp.body).toHaveProperty('status', 'UNCHANGED');
+                expect(resp.body).toHaveProperty('statusAcceptor', null);
+
+                expect(resp.body.moneyOperations.find(operation => operation.id === newOperation.id)).not.toBeTruthy();
+
+                return MoneyOperation
+                    .findById(newOperation.id);
+            })
+            .then(resp => expect(resp).toBe(null));
     });
 });
 

@@ -1,7 +1,9 @@
-const app = require('./app');
+import { App } from './app';
 import * as SwaggerExpress from 'swagger-express-mw';
 
 
+
+const app = new App().application;
 
 const config = {
     appRoot: __dirname // required config
