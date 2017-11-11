@@ -679,7 +679,7 @@ definitions:
         description: Used to show currency
       status:
         type: string
-        format: CREATION_AWAITING | UNCHANGED | CHANGE_AWAITING | DELETE_AWAITING
+        format: CREATION_AWAITING | UNCHANGED | CHANGE_AWAITING | USER_DELETED
       statusAcceptor:
         type: string
         format: id | null
