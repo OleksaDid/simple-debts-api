@@ -43,7 +43,7 @@ StatusCodeMoneyOperations.prototype.cast = function(val) {
     return val;
 };
 
-mongoose.Schema.Types.StatusCodeMoneyOperations = StatusCodeMoneyOperations;
+mongoose.Schema.Types['StatusCodeMoneyOperations'] = StatusCodeMoneyOperations;
 
 
 const moneyOperationsSchema = new mongoose.Schema({
@@ -52,7 +52,7 @@ const moneyOperationsSchema = new mongoose.Schema({
     moneyAmount: Number,
     moneyReceiver: { type: Schema.Types.ObjectId, ref: 'User' },
     description: String,
-    status: Schema.Types.StatusCodeMoneyOperations,
+    status: Schema.Types['StatusCodeMoneyOperations'],
     statusAcceptor: { type: Schema.Types.ObjectId, ref: 'User' }
 });
 

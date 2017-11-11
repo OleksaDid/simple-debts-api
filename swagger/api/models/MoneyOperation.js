@@ -25,14 +25,14 @@ StatusCodeMoneyOperations.prototype.cast = function (val) {
     }
     return val;
 };
-mongoose.Schema.Types.StatusCodeMoneyOperations = StatusCodeMoneyOperations;
+mongoose.Schema.Types['StatusCodeMoneyOperations'] = StatusCodeMoneyOperations;
 const moneyOperationsSchema = new mongoose.Schema({
     debtsId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Debts' },
     date: { type: Date, default: Date.now },
     moneyAmount: Number,
     moneyReceiver: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User' },
     description: String,
-    status: mongoose_1.Schema.Types.StatusCodeMoneyOperations,
+    status: mongoose_1.Schema.Types['StatusCodeMoneyOperations'],
     statusAcceptor: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User' }
 });
 const MoneyOperation = mongoose.model('MoneyOperation', moneyOperationsSchema);

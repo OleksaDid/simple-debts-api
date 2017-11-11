@@ -3,7 +3,7 @@ import { Id } from './common';
 import { Schema } from 'mongoose';
 import { MoneyOperationClass } from './MoneyOperation';
 
-type DebtsStatus = 'CREATION_AWAITING' | 'UNCHANGED' | 'CHANGE_AWAITING' | 'DELETE_AWAITING';
+type DebtsStatus = 'CREATION_AWAITING' | 'UNCHANGED' | 'CHANGE_AWAITING' | 'USER_DELETED';
 export type DebtsAccountType = 'SINGLE_USER' | 'MULTIPLE_USERS';
 
 export type DebtsModel = mongoose.Document & {
@@ -107,7 +107,7 @@ DebtsAccountType.prototype.cast = function(val) {
     return val;
 };
 
-mongoose.Schema.Types.DebtsAccountType = DebtsAccountType;
+mongoose.Schema.Types['DebtsAccountType'] = DebtsAccountType;
 
 
 function StatusCodeDebts(key, options) {
@@ -117,7 +117,7 @@ StatusCodeDebts.prototype = Object.create(mongoose.SchemaType.prototype);
 
 
 StatusCodeDebts.prototype.cast = function(val) {
-    const statuses = ['CREATION_AWAITING', 'UNCHANGED', 'CHANGE_AWAITING', 'DELETE_AWAITING'];
+    const statuses = ['CREATION_AWAITING', 'UNCHANGED', 'CHANGE_AWAITING', 'USER_DELETED'];
 
     if(statuses.indexOf(val) === -1) {
         throw new Error('StatusCodeDebts: ' + val + ' is not valid');
@@ -126,17 +126,17 @@ StatusCodeDebts.prototype.cast = function(val) {
     return val;
 };
 
-mongoose.Schema.Types.StatusCodeDebts = StatusCodeDebts;
+mongoose.Schema.Types['StatusCodeDebts'] = StatusCodeDebts;
 
 
 const debtsSchema = new mongoose.Schema({
     users: [{ type: Schema.Types.ObjectId, ref: 'User' }],
 
-    type: Schema.Types.DebtsAccountType,
+    type: Schema.Types['DebtsAccountType'],
 
     countryCode: String,
 
-    status: Schema.Types.StatusCodeDebts,
+    status: Schema.Types['StatusCodeDebts'],
     statusAcceptor: { type: Schema.Types.ObjectId, ref: 'User' },
 
     summary: Number,

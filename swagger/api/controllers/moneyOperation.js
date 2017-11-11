@@ -158,7 +158,7 @@ class OperationsController {
                     throw 'Operation is not found';
                 }
                 return Debts_1.default
-                    .findOneAndUpdate({ _id: operation.debtsId, users: { $in: [userId] }, type: 'MULTIPLE_USERS' }, { '$pull': { 'moneyOperations': operationId } })
+                    .findOneAndUpdate({ _id: operation.debtsId, users: { $in: [userId] } }, { '$pull': { 'moneyOperations': operationId } })
                     .populate({ path: 'moneyOperations', select: 'status' });
             })
                 .then(debt => {

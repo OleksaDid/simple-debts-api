@@ -13,18 +13,22 @@ const credentials = {
     password: 'a998877'
 };
 
+const credentialsThird = {
+    email:"hleb@ssdemail.com",
+    password: "hdhdjigo"
+};
+
 const fbToken = 'EAAJV6d1AA6ABAJHo5lH4Os7muF06jbbWtqTjryqGDtWp4YAoHD5CKzecvxODmUdCz8HgYM7gwc37iZBZB4ZBbTN713crYEjCBMbZBSf45frhppjHufFJyeanPbjPNldPrgnMDHA4Gv0gkNoZAs6rDPTQ2x9ZCUX4iTIrUu3ORHKXiyQkip6ZBVASadurdUtB5Bm3SMQyafhZCsrrI1AyacxGZCP7P7IoUZBYcZD';
 
 let token = '';
 let user;
 let anotherUserToken = '';
 let anotherUser;
+let thirdUser;
+let thirdUserToken;
 
 let singleDebt;
 let multipleDebt;
-
-// TODO: test toGive/toTake in GET /debts
-// TODO: check statusAcceptor & moneyAcceptor
 
 
 beforeAll((done) => {
@@ -44,6 +48,12 @@ beforeAll((done) => {
     );
 
     promises.push(
+        request(app)
+            .post('/login/local')
+            .send(credentialsThird)
+    );
+
+    promises.push(
         mongoose.connection.collections['debts'].drop()
     );
 
@@ -55,6 +65,9 @@ beforeAll((done) => {
 
             token = responses[1].body.token;
             user = responses[1].body.user;
+
+            thirdUserToken = responses[2].body.token;
+            thirdUser = responses[2].body.user;
 
             done();
         });
@@ -718,223 +731,41 @@ describe('DELETE /debts/:id/creation', () => {
 });
 
 
-
-describe('PUT /debts/:id/delete_request', () => {
+describe('DELETE /debts/:id', () => {
+    let deletedUserDebt;
 
     beforeAll((done) => {
         request(app)
             .put('/debts')
             .send({userId: anotherUser.id, countryCode: 'UA'})
             .set('Authorization', 'Bearer ' + token)
-            .then((resp) => {
+            .then(resp => {
                 multipleDebt = resp.body;
                 done();
-            });
-    });
-
-    it('should return 401 error if token is invalid', () => {
-        const promises = [];
-
-        promises.push(request(app).put('/debts/' + multipleDebt.id + '/delete_request'));
-        promises.push(request(app).put('/debts/' + multipleDebt.id + '/delete_request').set('Authorization', 'Bearer '));
-        promises.push(request(app).put('/debts/' + multipleDebt.id + '/delete_request').set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
-
-        return Promise.all(promises).then(responses => {
-            responses.forEach(resp => {
-                expect(resp.statusCode).toBe(401);
-            });
-        });
-    });
-
-    it('should return 400 or 404 if no param is set', () => {
-        const promises = [];
-        const params = [
-            '',
-            '/',
-            ' ',
-            null,
-            undefined
-        ];
-
-        params.forEach(param => {
-            promises.push(request(app).put('/debts/' + param + '/delete_request').set('Authorization', 'Bearer ' + token));
-        });
-
-        return Promise.all(promises).then(responses => {
-            responses.forEach(resp => {
-                expect(resp.statusCode).toBeGreaterThanOrEqual(400);
-                expect(resp.statusCode).toBeLessThanOrEqual(404);
-            });
-        });
-    });
-
-    it('should return 400 if invalid param is set', () => {
-
-        return request(app)
-            .put('/debts/' + 'y34ygv4h3' + '/delete_request')
-            .set('Authorization', 'Bearer ' + token)
-            .expect(400)
-            .then(resp => {
-                expect(resp.body).toHaveProperty('error');
-            });
-    });
-
-    it('should return an error if debts status is not \'UNCHANGED\'', () => {
-        return request(app)
-            .put('/debts/' + multipleDebt.id + '/delete_request')
-            .set('Authorization', 'Bearer ' + token)
-            .expect(400)
-            .then(resp => {
-                expect(resp.body).toHaveProperty('error', 'Cannot modify debts that need acceptance');
-            });
-    });
-
-    it('should return all debts & change status to \'DELETE AWAITING\'', () => {
-        return request(app)
-            .post('/debts/' + multipleDebt.id + '/creation')
-            .set('Authorization', 'Bearer ' + anotherUserToken)
-            .expect(200)
+            })
             .then(() => {
+                const operationPayload = {
+                    debtsId: multipleDebt.id,
+                    moneyAmount: 300,
+                    moneyReceiver: user.id,
+                    description: 'test'
+                };
+
                 return request(app)
-                    .put('/debts/' + multipleDebt.id + '/delete_request')
+                    .put('/operation')
+                    .send(operationPayload)
                     .set('Authorization', 'Bearer ' + token)
-                    .expect(200)
-                    .then(resp => {
-                        const debts = resp.body;
-                        const unchangedDebt = JSON.parse(JSON.stringify(multipleDebt));
-                        unchangedDebt.status = 'DELETE_AWAITING';
-                        unchangedDebt.statusAcceptor = anotherUser.id;
-                        unchangedDebt.user = anotherUser;
-                        delete unchangedDebt.moneyOperations;
-
-                        expect(debts).toHaveProperty('debts');
-                        expect(Array.isArray(debts.debts)).toBeTruthy();
-                        debts.debts.forEach(debt => checkIsObjectMatchesDebtsModel(debt, unchangedDebt, false));
-
-                        expect(debts).toHaveProperty('summary');
-                        expect(debts.summary).toHaveProperty('toGive', 0);
-                        expect(debts.summary).toHaveProperty('toTake', 0);
-                    });
-            });
-    });
-});
-
-
-describe('POST /debts/:id/delete_request', () => {
-
-    it('should return 401 error if token is invalid', () => {
-        const promises = [];
-
-        promises.push(request(app).post('/debts/' + multipleDebt.id + '/delete_request'));
-        promises.push(request(app).post('/debts/' + multipleDebt.id + '/delete_request').set('Authorization', 'Bearer '));
-        promises.push(request(app).post('/debts/' + multipleDebt.id + '/delete_request').set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
-
-        return Promise.all(promises).then(responses => {
-            responses.forEach(resp => {
-                expect(resp.statusCode).toBe(401);
-            });
-        });
-    });
-
-    it('should return 400 or 404 if no param is set', () => {
-        const promises = [];
-        const params = [
-            '',
-            '/',
-            ' ',
-            null,
-            undefined
-        ];
-
-        params.forEach(param => {
-            promises.push(request(app).post('/debts/' + param + '/delete_request').set('Authorization', 'Bearer ' + token));
-        });
-
-        return Promise.all(promises).then(responses => {
-            responses.forEach(resp => {
-                expect(resp.statusCode).toBeGreaterThanOrEqual(400);
-                expect(resp.statusCode).toBeLessThanOrEqual(404);
-            });
-        });
-    });
-
-    it('should return 400 if invalid param is set', () => {
-
-        return request(app)
-            .post('/debts/' + 'y34ygv4h3' + '/delete_request')
-            .set('Authorization', 'Bearer ' + token)
-            .expect(400)
-            .then(resp => {
-                expect(resp.body).toHaveProperty('error');
-            });
-    });
-
-    it('should return an error if not statusAcceptor tries to decline debts delete', () => {
-
-        return request(app)
-            .post('/debts/' + multipleDebt.id + '/delete_request')
-            .set('Authorization', 'Bearer ' + token)
-            .expect(400)
-            .then(resp => {
-                expect(resp.body).toHaveProperty('error');
-            });
-    });
-
-    it('should return all debts & change status of debtId from \'DELETE_AWAITING\' to \'UNCHANGED\' & change statusAcceptor to null', () => {
-        expect(multipleDebt.status).toBe('CREATION_AWAITING');
-
-        return request(app)
-            .post('/debts/' + multipleDebt.id + '/delete_request')
-            .set('Authorization', 'Bearer ' + anotherUserToken)
-            .expect(200)
-            .then(resp => {
-                const debts = resp.body;
-                const unchangedDebt = JSON.parse(JSON.stringify(multipleDebt));
-                unchangedDebt.status = 'UNCHANGED';
-                unchangedDebt.statusAcceptor = null;
-                unchangedDebt.user = user;
-                delete unchangedDebt.moneyOperations;
-
-                expect(debts).toHaveProperty('debts');
-                expect(Array.isArray(debts.debts)).toBeTruthy();
-                debts.debts.forEach(debt => checkIsObjectMatchesDebtsModel(debt, unchangedDebt, false));
-
-                expect(debts).toHaveProperty('summary');
-                expect(debts.summary).toHaveProperty('toGive', 0);
-                expect(debts.summary).toHaveProperty('toTake', 0);
-
-                expect(debts.debts.find(debt => debt.id === unchangedDebt.id)).toBeTruthy();
-                checkIsObjectMatchesDebtsModel(debts.debts.find(debt => debt.id === unchangedDebt.id), unchangedDebt);
-            });
-    });
-
-    it('should return an error if debts is already accepted/declined', () => {
-        return request(app)
-            .post('/debts/' + multipleDebt.id + '/creation')
-            .set('Authorization', 'Bearer ' + anotherUserToken)
-            .expect(400)
-            .then(resp => {
-                expect(resp.body).toHaveProperty('error', 'Debts not found');
-            });
-    });
-});
-
-
-describe('DELETE /debts/:id/delete_request', () => {
-
-    beforeAll((done) => {
-        request(app)
-            .put('/debts/' + multipleDebt.id + '/delete_request')
-            .set('Authorization', 'Bearer ' + token)
+                    .expect(200);
+            })
             .then(() => done());
     });
 
     it('should return 401 error if token is invalid', () => {
         const promises = [];
 
-        promises.push(request(app).delete('/debts/' + multipleDebt.id + '/delete_request'));
-        promises.push(request(app).delete('/debts/' + multipleDebt.id + '/delete_request').set('Authorization', 'Bearer '));
-        promises.push(request(app).delete('/debts/' + multipleDebt.id + '/delete_request').set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
+        promises.push(request(app).delete('/debts/' + multipleDebt.id));
+        promises.push(request(app).delete('/debts/' + multipleDebt.id).set('Authorization', 'Bearer '));
+        promises.push(request(app).delete('/debts/' + multipleDebt.id).set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
 
         return Promise.all(promises).then(responses => {
             responses.forEach(resp => {
@@ -954,7 +785,7 @@ describe('DELETE /debts/:id/delete_request', () => {
         ];
 
         params.forEach(param => {
-            promises.push(request(app).delete('/debts/' + param + '/delete_request').set('Authorization', 'Bearer ' + token));
+            promises.push(request(app).delete('/debts/' + param).set('Authorization', 'Bearer ' + token));
         });
 
         return Promise.all(promises).then(responses => {
@@ -968,7 +799,7 @@ describe('DELETE /debts/:id/delete_request', () => {
     it('should return 400 if invalid param is set', () => {
 
         return request(app)
-            .delete('/debts/' + 'y34ygv4h3' + '/delete_request')
+            .delete('/debts/' + 'y34ygv4h3')
             .set('Authorization', 'Bearer ' + token)
             .expect(400)
             .then(resp => {
@@ -976,44 +807,76 @@ describe('DELETE /debts/:id/delete_request', () => {
             });
     });
 
-    it('should return an error if not statusAcceptor tries to accept debts', () => {
+    it('should reject user if he is not a user of this Debt entity', () => {
 
         return request(app)
-            .delete('/debts/' + multipleDebt.id + '/delete_request')
-            .set('Authorization', 'Bearer ' + token)
+            .delete('/debts/' + multipleDebt.id)
+            .set('Authorization', 'Bearer ' + thirdUserToken)
             .expect(400)
             .then(resp => {
                 expect(resp.body).toHaveProperty('error');
             });
     });
 
-    it('should return all debts', () => {
+    it('should return all debts to user who\'s deleted', () => {
         return request(app)
-            .delete('/debts/' + multipleDebt.id + '/delete_request')
-            .set('Authorization', 'Bearer ' + anotherUserToken)
+            .delete('/debts/' + multipleDebt.id)
+            .set('Authorization', 'Bearer ' + token)
             .expect(200)
             .then(resp => {
                 const debts = resp.body;
-                const unchangedDebt = JSON.parse(JSON.stringify(multipleDebt));
-                unchangedDebt.status = 'UNCHANGED';
-                unchangedDebt.statusAcceptor = null;
-                unchangedDebt.user = user;
-                delete unchangedDebt.moneyOperations;
 
                 expect(debts).toHaveProperty('debts');
                 expect(Array.isArray(debts.debts)).toBeTruthy();
-                debts.debts.forEach(debt => checkIsObjectMatchesDebtsModel(debt, unchangedDebt, false));
+
+                debts.debts.forEach(debt => {
+                    checkIsObjectMatchesDebtsModel(debt, multipleDebt, false);
+                });
 
                 expect(debts).toHaveProperty('summary');
-                expect(debts.summary).toHaveProperty('toGive', 0);
-                expect(debts.summary).toHaveProperty('toTake', 0);
+                expect(debts.summary).toHaveProperty('toGive', );
+                expect(debts.summary).toHaveProperty('toTake', );
             });
     });
 
-    it('should delete debt from db', () => {
-        return Debts.findById(multipleDebt.id)
-            .then((resp) => expect(resp).not.toBeTruthy());
+    it('should change Debts type to SINGLE_DEBT & status to USER_DELETED', () => {
+        return request(app)
+            .get('/debts/' + multipleDebt.id)
+            .set('Authorization', 'Bearer ' + anotherUserToken)
+            .expect(200)
+            .then(debt => {
+                deletedUserDebt = debt.body;
+                expect(deletedUserDebt).toHaveProperty('status', 'USER_DELETED');
+                expect(deletedUserDebt).toHaveProperty('statusAcceptor', anotherUser.id);
+                expect(deletedUserDebt).toHaveProperty('type', 'SINGLE_USER');
+            });
     });
+
+    it('should create virtual user with the same name as deleted user + with his picture', () => {
+        expect(deletedUserDebt.user).toHaveProperty('name', user.name + ' BOT');
+        expect(deletedUserDebt.user).toHaveProperty('picture', user.picture);
+    });
+
+    it('should change req.user.id on virtual user.id everywhere in Debt & operations', () => {
+        return Debts
+            .findById(deletedUserDebt.id)
+            .populate({
+                path: 'moneyOperations',
+                select: 'moneyReceiver statusAcceptor',
+                options: { sort: { 'date': -1 } }
+            })
+            .then(debt => {
+                expect(debt['users'].some(user => user.toString() === deletedUserDebt.user.id.toString())).toBeTruthy();
+                expect(JSON.stringify(debt).indexOf(user.id.toString()) === -1).toBeTruthy();
+            });
+    });
+
+    it('should accept all unaccepted money operations where statusAcceptor === virtualUser', () => {
+        deletedUserDebt.moneyOperations
+            .every(operation => !(operation.statusAcceptor.toString() === user.id.toString() && operation.status !== 'UNCHANGED');
+    });
+
+
 });
 
 

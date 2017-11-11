@@ -204,7 +204,7 @@ export class OperationsController {
 
                 return Debts
                     .findOneAndUpdate(
-                        {_id: operation.debtsId, users: {$in: [userId]}, type: 'MULTIPLE_USERS'},
+                        {_id: operation.debtsId, users: {$in: [userId]}},
                         {'$pull': {'moneyOperations': operationId}}
                     )
                     .populate({ path: 'moneyOperations', select: 'status'});

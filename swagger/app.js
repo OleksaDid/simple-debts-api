@@ -107,11 +107,9 @@ class App {
         v1.get('/debts', this.authController.checkJWTAccess, this.debtsController.getAllUserDebts);
         v1.put('/debts', this.authController.checkJWTAccess, this.debtsController.createNewDebt);
         v1.get('/debts/:id', this.authController.checkJWTAccess, this.debtsController.getDebtsById);
+        v1.delete('/debts/:id', this.authController.checkJWTAccess, this.debtsController.deleteMultipleDebts);
         v1.post('/debts/:id/creation', this.authController.checkJWTAccess, this.debtsController.acceptCreation);
         v1.delete('/debts/:id/creation', this.authController.checkJWTAccess, this.debtsController.declineCreation);
-        v1.put('/debts/:id/delete_request', this.authController.checkJWTAccess, this.debtsController.requestDebtsDelete);
-        v1.delete('/debts/:id/delete_request', this.authController.checkJWTAccess, this.debtsController.requestDebtsDeleteAccept);
-        v1.post('/debts/:id/delete_request', this.authController.checkJWTAccess, this.debtsController.requestDebtsDeleteDecline);
         v1.put('/debts/single', this.authController.checkJWTAccess, this.debtsController.createSingleDebt);
         v1.delete('/debts/single/:id', this.authController.checkJWTAccess, this.debtsController.deleteSingleDebt);
         // MONEY OPERATIONS

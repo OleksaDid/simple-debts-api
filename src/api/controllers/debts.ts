@@ -5,6 +5,7 @@ import { Id } from '../models/common';
 import * as fs from 'fs';
 import {StaticHelper} from "../helpers/static";
 import {ErrorHandler} from "../helpers/error-handler";
+import MoneyOperation from "../models/MoneyOperation";
 
 
 
@@ -243,101 +244,66 @@ export class DebtsController {
     };
 
     /*
-     * PUT
-     * /debts/delete-request
-     * @param debtsId Id Id of debts you want to delete
-     */
-    requestDebtsDelete = (req, res) => {
-        req.assert('id', 'Debts Id is not valid').notEmpty();
-
-        const errors = req.validationErrors();
-
-        if (errors) {
-            return this.errorHandler.errorHandler(req, res, errors);
-        }
-
+    * DELETE
+    * /debts/:id
+    */
+    deleteMultipleDebts = (req: any, res: Response) => {
         const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
         const userId = req.user.id;
 
+        let deletedUserInfo;
+        let createdVirtualUser;
+
         return Debts
-            .findOne({ _id: debtsId, users: {'$all': [userId]} })
-            .then((debts: any) => {
+            .findOne({_id: debtsId, type: 'MULTIPLE_USERS', users: {$in: [userId]}})
+            .populate({ path: 'users', select: 'name picture'})
+            .lean()
+            .then(debt => {
+                deletedUserInfo = debt['users'].find(user => user._id.toString() === userId.toString());
+                deletedUserInfo.name += ' BOT';
+                delete deletedUserInfo._id;
 
-                if(debts.statusAcceptor !== null || debts.status !== 'UNCHANGED') {
-                    throw 'Cannot modify debts that need acceptance';
-                }
+                return User.create(deletedUserInfo);
+            })
+            .then(user => {
+                createdVirtualUser = user;
+                return Debts.findByIdAndUpdate(debtsId, {
+                    type: 'SINGLE_USER',
+                    status: 'USER_DELETED',
+                    $pull: {'users': userId}
+                });
+            })
+            .then(debt => {
+                debt['statusAcceptor'] = debt['users'].find(user => user.toString() !== userId.toString());
+                debt['users'].push(createdVirtualUser._id);
 
-                debts.statusAcceptor = debts.users.find(user => user.toString() != userId);
-                debts.status = 'DELETE_AWAITING';
+                const promises = [];
+                debt['moneyOperations']
+                    .forEach(operationId => promises.push(MoneyOperation.findById(operationId)));
 
-                return debts.save();
+                return debt
+                    .save()
+                    .then(() => Promise.all(promises));
+            })
+            .then(operations => {
+                const promises = operations.map(operation => {
+                    if(operation.moneyReceiver.toString() === userId.toString()) {
+                        operation.moneyReceiver = createdVirtualUser._id;
+                    }
+                    if(operation.statusAcceptor.toString() === userId.toString()) {
+                        operation.statusAcceptor = null;
+                        operation.status = 'UNCHANGED';
+                    }
+                    return operation.save();
+                });
+
+                return Promise.all(promises);
             })
             .then(() => this.getAllUserDebts(req, res))
             .catch(err => this.errorHandler.errorHandler(req, res, err));
     };
 
 
-    /*
-     * DELETE
-     * /debts/delete-request
-     * @param debtsId Id Id of debts you want to accept delete
-     */
-    requestDebtsDeleteAccept = (req, res) => {
-        req.assert('id', 'Debts Id is not valid').notEmpty();
-
-        const errors = req.validationErrors();
-
-        if (errors) {
-            return this.errorHandler.errorHandler(req, res, errors);
-        }
-
-        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
-        const userId = req.user.id;
-
-        return Debts
-            .findOneAndRemove({ _id: debtsId, status: 'DELETE_AWAITING', statusAcceptor: userId })
-            .then((resp: DebtsModel) => {
-                if(!resp) {
-                    throw 'Debts not found';
-                }
-
-                return this.getAllUserDebts(req, res);
-            })
-            .catch(err => this.errorHandler.errorHandler(req, res, err));
-    };
-
-
-    /*
-     * POST
-     * /debts/delete-request
-     * @param debtsId Id Id of debts you want to decline delete
-     */
-    requestDebtsDeleteDecline = (req, res) => {
-        req.assert('id', 'Debts Id is not valid').notEmpty();
-
-        const errors = req.validationErrors();
-
-        if (errors) {
-            return this.errorHandler.errorHandler(req, res, errors);
-        }
-
-        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
-        const userId = req.user.id;
-
-        return Debts
-            .findOneAndUpdate(
-                { _id: debtsId, status: 'DELETE_AWAITING', statusAcceptor: userId },
-                {status: 'UNCHANGED', statusAcceptor: null}
-            )
-            .then((resp: DebtsModel) => {
-                if(!resp) {
-                    throw 'Debts not found';
-                }
-
-                return this.getAllUserDebts(req, res);
-            })
-            .catch(err => this.errorHandler.errorHandler(req, res, err));
-    };
 
     getDebtsByIdHelper = (req, res, debts?: Id) => {
         const debtsId = debts ? debts : (req.swagger ? req.swagger.params.id.value : req.params.id);
