@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema({
     password: String,
     resetPasswordToken: String,
     resetPasswordTokenExpires: Date,
+    virtual: { type: Boolean, default: false },
     facebook: { type: String, index: true, unique: true, sparse: true },
     tokens: Array
 }, { timestamps: true });

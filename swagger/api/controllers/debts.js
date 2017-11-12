@@ -61,7 +61,8 @@ class DebtsController {
             const countryCode = req.swagger ? req.swagger.params.countryCode.value : req.body.countryCode;
             const creatorId = req.user.id;
             const virtUser = {
-                name: userName
+                name: userName,
+                virtual: true
             };
             return Debts_1.default
                 .find({ 'users': { '$all': [creatorId] }, 'type': 'SINGLE_USER' })
@@ -214,6 +215,7 @@ class DebtsController {
                 .then(debt => {
                 deletedUserInfo = debt['users'].find(user => user._id.toString() === userId.toString());
                 deletedUserInfo.name += ' BOT';
+                deletedUserInfo.virtual = true;
                 delete deletedUserInfo._id;
                 return User_1.default.create(deletedUserInfo);
             })

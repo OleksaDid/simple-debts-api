@@ -255,6 +255,12 @@ describe('PUT /debts/single', () => {
                 delete debt.body.user.picture;
 
                 checkIsObjectMatchesDebtsModel(debt.body, expectedDebts);
+
+                return User.findById(singleDebt.user.id).lean();
+            })
+            .then(user => {
+                expect(user).toHaveProperty('virtual');
+                expect(user.virtual).toBeTruthy();
             });
     });
 
@@ -855,6 +861,16 @@ describe('DELETE /debts/:id', () => {
     it('should create virtual user with the same name as deleted user + with his picture', () => {
         expect(deletedUserDebt.user).toHaveProperty('name', user.name + ' BOT');
         expect(deletedUserDebt.user).toHaveProperty('picture', user.picture);
+
+        return User
+            .findById(deletedUserDebt.user.id)
+            .lean()
+            .then(user => {
+                expect(user).toHaveProperty('name', deletedUserDebt.user.name);
+                expect(user).toHaveProperty('picture', deletedUserDebt.user.picture);
+                expect(user).toHaveProperty('virtual');
+                expect(user['virtual']).toBeTruthy();
+            });
     });
 
     it('should change req.user.id on virtual user.id everywhere in Debt & operations', () => {

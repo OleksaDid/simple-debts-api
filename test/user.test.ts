@@ -63,7 +63,7 @@ describe('GET /users', () => {
     });
 
     it('should return an array of users', () => {
-        const regex = 'hl';
+        const regex = 'real';
 
         return request(app)
             .get('/users')
@@ -79,6 +79,7 @@ describe('GET /users', () => {
                     expect(user).toHaveProperty('picture');
 
                     expect(user.name).toMatch(new RegExp(regex, 'i'));
+                    expect(user.name.indexOf('BOT') === -1).toBeTruthy();
                 });
             });
     });

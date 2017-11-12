@@ -33,7 +33,10 @@ export class UsersController {
                 const usedUserIds = debts.map(debt => debt.users.find(user => user.id.toString() != userId).id);
 
                 User
-                    .find({'name': new RegExp(name, 'i')})
+                    .find({
+                        'name': new RegExp(name, 'i'),
+                        $or: [{virtual: false}, {virtual: {$exists: false}}]
+                    })
                     .limit(15)
                     .exec()
                     .then((users: UserModel[]) => {

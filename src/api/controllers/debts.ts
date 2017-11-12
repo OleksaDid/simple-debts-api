@@ -78,7 +78,8 @@ export class DebtsController {
         const creatorId = req.user.id;
 
         const virtUser = {
-            name: userName
+            name: userName,
+            virtual: true
         };
 
         return Debts
@@ -270,6 +271,7 @@ export class DebtsController {
             .then(debt => {
                 deletedUserInfo = debt['users'].find(user => user._id.toString() === userId.toString());
                 deletedUserInfo.name += ' BOT';
+                deletedUserInfo.virtual = true;
                 delete deletedUserInfo._id;
 
                 return User.create(deletedUserInfo);
