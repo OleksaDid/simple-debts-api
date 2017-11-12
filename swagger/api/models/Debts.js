@@ -66,7 +66,7 @@ function StatusCodeDebts(key, options) {
 }
 StatusCodeDebts.prototype = Object.create(mongoose.SchemaType.prototype);
 StatusCodeDebts.prototype.cast = function (val) {
-    const statuses = ['CREATION_AWAITING', 'UNCHANGED', 'CHANGE_AWAITING', 'USER_DELETED'];
+    const statuses = ['CREATION_AWAITING', 'UNCHANGED', 'CHANGE_AWAITING', 'USER_DELETED', 'CONNECT_USER'];
     if (statuses.indexOf(val) === -1) {
         throw new Error('StatusCodeDebts: ' + val + ' is not valid');
     }

@@ -26,6 +26,7 @@ const expressValidator = require("express-validator");
 const cors = require("cors");
 const errorHandler = require("errorhandler");
 const rollbar_1 = require("./api/helpers/rollbar");
+const error_handler_1 = require("./api/helpers/error-handler");
 /**
  * Controllers (route handlers).
  */
@@ -33,7 +34,6 @@ const auth_1 = require("./api/controllers/auth");
 const users_1 = require("./api/controllers/users");
 const debts_1 = require("./api/controllers/debts");
 const moneyOperation_1 = require("./api/controllers/moneyOperation");
-const error_handler_1 = require("./api/helpers/error-handler");
 class App {
     constructor() {
         this.MongoStore = mongo(session);
@@ -112,6 +112,9 @@ class App {
         v1.delete('/debts/:id/creation', this.authController.checkJWTAccess, this.debtsController.declineCreation);
         v1.put('/debts/single', this.authController.checkJWTAccess, this.debtsController.createSingleDebt);
         v1.delete('/debts/single/:id', this.authController.checkJWTAccess, this.debtsController.deleteSingleDebt);
+        v1.put('/debts/single/:id/connect_user', this.authController.checkJWTAccess, this.debtsController.connectUserToSingleDebt);
+        v1.post('/debts/single/:id/connect_user', this.authController.checkJWTAccess, this.debtsController.acceptUserConnection);
+        v1.delete('/debts/single/:id/connect_user', this.authController.checkJWTAccess, this.debtsController.declineUserConnection);
         v1.post('/debts/single/:id/i_love_lsd', this.authController.checkJWTAccess, this.debtsController.acceptUserDeletedStatus);
         // MONEY OPERATIONS
         v1.put('/operation', this.authController.checkJWTAccess, this.operationsController.createOperation);

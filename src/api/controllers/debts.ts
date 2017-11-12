@@ -21,7 +21,7 @@ export class DebtsController {
      * @param countryCode String ISO2 country code
      */
     createNewDebt = (req: any, res: Response) => {
-        req.assert('userId', 'User Id is not valid').notEmpty();
+        req.assert('userId', 'User Id is not valid').isMongoId();
         req.assert('countryCode', 'Country code is empty').notEmpty();
         req.assert('countryCode', 'Country code length must be 2').isLength({min: 2, max: 2});
 
@@ -84,10 +84,10 @@ export class DebtsController {
 
         return Debts
             .find({'users': {'$all': [creatorId]}, 'type': 'SINGLE_USER'})
-            .populate({ path: 'users', select: 'name'})
+            .populate({ path: 'users', select: 'name virtual'})
             .lean()
             .then((resp: any) => {
-                if(resp && resp.length > 0 && resp.some(debt => !!debt.users.find(us => us.name === userName))) {
+                if(resp && resp.length > 0 && resp.some(debt => !!debt.users.find(us => us.name === userName && us.virtual))) {
                     throw 'You already have virtual user with such name';
                 }
                 return User.create(virtUser);
@@ -113,7 +113,7 @@ export class DebtsController {
      * @param debtsId Id Id of Debts you want to delete
      */
     deleteSingleDebt = (req: any, res: Response) => {
-        req.assert('id', 'Debts Id is not valid').notEmpty();
+        req.assert('id', 'Debts Id is not valid').isMongoId();
 
         const errors = req.validationErrors();
 
@@ -155,7 +155,7 @@ export class DebtsController {
      * @param debtsId Id Id of debts you want to accept
      */
     acceptCreation = (req: any, res: Response) => {
-        req.assert('id', 'Debts Id is not valid').notEmpty();
+        req.assert('id', 'Debts Id is not valid').isMongoId();
 
         const errors = req.validationErrors();
 
@@ -187,7 +187,7 @@ export class DebtsController {
      * @param debtsId Id Id of debts you want to decline
      */
     declineCreation = (req: any, res: Response) => {
-        req.assert('id', 'Debts Id is not valid').notEmpty();
+        req.assert('id', 'Debts Id is not valid').isMongoId();
 
         const errors = req.validationErrors();
 
@@ -218,8 +218,13 @@ export class DebtsController {
         const userId = req.user.id;
 
         return Debts
-            .find({'users': {'$all': [userId]}})
-            .populate({ path: 'users', select: 'name picture'})
+            .find({
+                $or: [
+                    {users: {'$all': [userId]}},
+                    {status: 'CONNECT_USER', statusAcceptor: userId}
+                ]
+            })
+            .populate({ path: 'users', select: 'name picture virtual'})
             .sort({status: 1, updatedAt: -1})
             .lean()
             .exec((err, debts: any) => {
@@ -250,7 +255,7 @@ export class DebtsController {
     * Deletes user from MULTIPLE_USERS Debts entity
     */
     deleteMultipleDebts = (req: any, res: Response) => {
-        req.assert('id', 'Debts Id is not valid').notEmpty();
+        req.assert('id', 'Debts Id is not valid').isMongoId();
 
         const errors = req.validationErrors();
 
@@ -269,6 +274,10 @@ export class DebtsController {
             .populate({ path: 'users', select: 'name picture'})
             .lean()
             .then(debt => {
+                if(!debt) {
+                    throw 'Debt is not found';
+                }
+
                 deletedUserInfo = debt['users'].find(user => user._id.toString() === userId.toString());
                 deletedUserInfo.name += ' BOT';
                 deletedUserInfo.virtual = true;
@@ -320,7 +329,7 @@ export class DebtsController {
     * Changes Debts status from USER_DELETED to UNCHANGED
     */
     acceptUserDeletedStatus = (req: any, res: Response) => {
-        req.assert('id', 'Debts Id is not valid').notEmpty();
+        req.assert('id', 'Debts Id is not valid').isMongoId();
 
         const errors = req.validationErrors();
 
@@ -338,6 +347,10 @@ export class DebtsController {
                 select: 'status'
             })
             .then(debt => {
+                if(!debt) {
+                    throw 'Debt is not found';
+                }
+
                 if(!debt['moneyOperations'] ||
                     !debt['moneyOperations'].length ||
                     debt['moneyOperations'].every(operation => operation.status === 'UNCHANGED')
@@ -355,6 +368,172 @@ export class DebtsController {
             .catch(err => this.errorHandler.errorHandler(req, res, err));
     };
 
+    /*
+    * PUT /debts/single/:id/connect_user
+    * Request user to join single_user Debt instead of bot
+    * @param userId Id Id of user you want to invite
+    * @query id Id Id of single_user Debt
+    */
+    connectUserToSingleDebt = (req: any, res: Response) => {
+        req.assert('id', 'Debts Id is not valid').isMongoId();
+        req.assert('userId', 'User Id is not valid').isMongoId();
+
+        const errors = req.validationErrors();
+
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
+        }
+
+        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
+        const anotherUserId = req.swagger ? req.swagger.params.userId.value : req.body.userId;
+        const userId = req.user.id;
+
+        if(userId.toString() === anotherUserId.toString()) {
+            return this.errorHandler.errorHandler(req, res, 'You can\'t connect yourself');
+        }
+
+        return Debts
+            .find({users: {$all: [userId, anotherUserId]}})
+            .lean()
+            .then(debts => {
+                if(debts && debts['length'] > 0) {
+                    throw 'You already have Debt with this user';
+                }
+
+                return Debts
+                    .findOne({_id: debtsId, type: 'SINGLE_USER', users: {$in: [userId]}});
+            })
+            .then(debt => {
+                if(!debt) {
+                    throw 'Debt is not found';
+                }
+
+                if(debt['status'] === 'CONNECT_USER') {
+                    throw 'Some user is already waiting for connection to this Debt';
+                }
+
+                if(debt['status'] === 'USER_DELETED') {
+                    throw 'You can\'t connect user to this Debt until you resolve user deletion';
+                }
+
+                debt['status'] = 'CONNECT_USER';
+                debt['statusAcceptor'] = anotherUserId;
+
+                return debt.save();
+            })
+            .then(() => this.getDebtsByIdHelper(req, res, debtsId))
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
+    /*
+    * POST /debts/single/:id/connect_user
+    * Accept connection invite
+    * @query id Id Id of single_user Debt
+    */
+    acceptUserConnection = (req: any, res: Response) => {
+        req.assert('id', 'Debts Id is not valid').isMongoId();
+
+        const errors = req.validationErrors();
+
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
+        }
+
+        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
+        const userId = req.user.id;
+
+        return Debts
+            .findOne({_id: debtsId, type: 'SINGLE_USER', status: 'CONNECT_USER', statusAcceptor: userId})
+            .populate('users', 'virtual')
+            .then(debt => {
+                const virtualUserId = debt['users'].find(user => user.virtual);
+
+                debt['status'] = 'UNCHANGED';
+                debt['type'] = 'MULTIPLE_USERS';
+                debt['statusAcceptor'] = null;
+
+                if(debt['moneyReceiver'] === virtualUserId) {
+                    debt['moneyReceiver'] = userId;
+                }
+
+                debt['users'].push(userId);
+
+                const promises = [];
+
+                debt['moneyOperations'].forEach(operation => {
+                    promises.push(
+                        MoneyOperation.findById(operation)
+                            .then(op => {
+                                if(op['moneyReceiver'] === virtualUserId) {
+                                    op['moneyReceiver'] = userId;
+                                }
+
+                                return op.save();
+                            })
+                    );
+                });
+
+                promises.push(
+                    User.findByIdAndRemove(virtualUserId)
+                        .then(user => {
+                            if(!user) {
+                                throw 'Virtual user is not found';
+                            }
+
+                            const imageName = user['picture'].match(/\/images\/.*/);
+
+                            fs.unlinkSync('public' + imageName);
+                        })
+                );
+
+                promises.push(Debts.findByIdAndUpdate(debtsId, {
+                    $pull: {users: virtualUserId}
+                }));
+
+                return debt.save().then(() => Promise.all(promises));
+            })
+            .then(() => this.getDebtsByIdHelper(req, res, debtsId))
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
+    /*
+    * DELETE /debts/single/:id/connect_user
+    * Decline connection invite
+    * @query id Id Id of single_user Debt
+    */
+    declineUserConnection = (req: any, res: Response) => {
+        req.assert('id', 'Debts Id is not valid').isMongoId();
+
+        const errors = req.validationErrors();
+
+        if (errors) {
+            return this.errorHandler.errorHandler(req, res, errors);
+        }
+
+        const debtsId = req.swagger ? req.swagger.params.id.value : req.params.id;
+        const userId = req.user.id;
+
+        return Debts
+            .findOneAndUpdate(
+                {
+                    _id: debtsId,
+                    type: 'SINGLE_USER',
+                    status: 'CONNECT_USER',
+                    $or: [
+                        {users: {$in: [userId]}},
+                        {statusAcceptor: userId}
+                    ]
+                },
+                {status: 'UNCHANGED', statusAcceptor: null})
+            .then(debt => {
+                if(!debt) {
+                    throw 'Debt is not found';
+                }
+                this.getDebtsByIdHelper(req, res, debtsId);
+            })
+            .catch(err => this.errorHandler.errorHandler(req, res, err));
+    };
+
 
 
     getDebtsByIdHelper = (req, res, debts?: Id) => {
@@ -367,7 +546,7 @@ export class DebtsController {
                 select: 'date moneyAmount moneyReceiver description status statusAcceptor',
                 options: { sort: { 'date': -1 } }
             })
-            .populate({ path: 'users', select: 'name picture'})
+            .populate({ path: 'users', select: 'name picture virtual'})
             .lean()
             .exec((err, debt: any) => {
                 if(err) {
@@ -388,12 +567,21 @@ export class DebtsController {
 
 
     private formatDebt(debt, userId, saveOperations: boolean) {
-        const newDebt = debt;
+        let newDebt = debt;
+
+        // make preview for user connect
+        if(debt.status === 'CONNECT_USER' && debt.statusAcceptor === userId) {
+            const userToChange = newDebt.users.find(user => user.virtual);
+
+            newDebt = JSON.parse(JSON.stringify(newDebt).replace(userToChange._id.toString(), userId.toString()));
+        }
+
         newDebt.user = newDebt.users.find(user => user._id.toString() != userId);
         newDebt.user.id = newDebt.user._id;
         newDebt.id = debt._id;
         delete newDebt._id;
         delete newDebt.user._id;
+        delete newDebt.user.virtual;
         delete newDebt.users;
         delete newDebt.__v;
         delete newDebt.createdAt;

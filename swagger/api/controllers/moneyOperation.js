@@ -19,10 +19,10 @@ class OperationsController {
          * @param description String Some notes about operation
          */
         this.createOperation = (req, res) => {
-            req.assert('debtsId', 'Debts Id is not valid').notEmpty();
+            req.assert('debtsId', 'Debts Id is not valid').isMongoId();
             req.assert('moneyAmount', 'moneyAmount is not a number').isNumeric();
             req.assert('moneyAmount', 'moneyAmount is empty').notEmpty();
-            req.assert('moneyReceiver', 'moneyReceiver is not valid').notEmpty();
+            req.assert('moneyReceiver', 'moneyReceiver is not valid').isMongoId();
             req.assert('description', 'description length is not valid').isLength({ min: 0, max: 70 });
             const errors = req.validationErrors();
             if (errors) {
@@ -38,7 +38,11 @@ class OperationsController {
                 return this.errorHandler.errorHandler(req, res, 'Money amount is less then or equal 0');
             }
             return Debts_1.default
-                .findOne({ _id: debtsId, users: { '$all': [userId, moneyReceiver] } }, 'users type')
+                .findOne({
+                _id: debtsId,
+                users: { '$all': [userId, moneyReceiver] },
+                $nor: [{ status: 'CONNECT_USER' }, { status: 'CREATION_AWAITING' }]
+            }, 'users type')
                 .lean()
                 .exec()
                 .then((resp) => {
@@ -73,14 +77,19 @@ class OperationsController {
          * @param operationId Id Id of the Operation that need to be deleted
          */
         this.deleteOperation = (req, res) => {
-            req.assert('id', 'Operation Id is not valid').notEmpty();
+            req.assert('id', 'Operation Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
                 return this.errorHandler.errorHandler(req, res, errors);
             }
             const operationId = req.swagger ? req.swagger.params.id.value : req.params.id;
             const userId = req.user.id;
-            return Debts_1.default.findOneAndUpdate({ 'users': { '$in': [userId] }, 'moneyOperations': { '$in': [operationId] }, 'type': 'SINGLE_USER' }, { '$pull': { 'moneyOperations': operationId } })
+            return Debts_1.default.findOneAndUpdate({
+                'users': { '$in': [userId] },
+                'moneyOperations': { '$in': [operationId] },
+                'type': 'SINGLE_USER',
+                $nor: [{ status: 'CONNECT_USER' }, { status: 'CREATION_AWAITING' }]
+            }, { '$pull': { 'moneyOperations': operationId } })
                 .populate({
                 path: 'moneyOperations',
                 select: 'moneyAmount moneyReceiver',
@@ -106,7 +115,7 @@ class OperationsController {
          * @param operationId Id Id of the Operation that need to be accepted
          */
         this.acceptOperation = (req, res) => {
-            req.assert('id', 'Operation Id is not valid').notEmpty();
+            req.assert('id', 'Operation Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
                 return this.errorHandler.errorHandler(req, res, errors);
@@ -114,7 +123,11 @@ class OperationsController {
             const operationId = req.swagger ? req.swagger.params.id.value : req.params.id;
             const userId = req.user.id;
             return MoneyOperation_1.default
-                .findOneAndUpdate({ _id: operationId, statusAcceptor: new this.ObjectId(userId), status: 'CREATION_AWAITING' }, { status: 'UNCHANGED', statusAcceptor: null })
+                .findOneAndUpdate({
+                _id: operationId,
+                statusAcceptor: new this.ObjectId(userId),
+                status: 'CREATION_AWAITING'
+            }, { status: 'UNCHANGED', statusAcceptor: null })
                 .then((resp) => {
                 if (!resp) {
                     throw 'Operation not found';
@@ -144,7 +157,7 @@ class OperationsController {
          * @param operationId Id Id of the Operation that need to be declined
          */
         this.declineOperation = (req, res) => {
-            req.assert('id', 'Operation Id is not valid').notEmpty();
+            req.assert('id', 'Operation Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
                 return this.errorHandler.errorHandler(req, res, errors);

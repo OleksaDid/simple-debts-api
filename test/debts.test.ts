@@ -29,6 +29,9 @@ let thirdUserToken;
 
 let singleDebt;
 let multipleDebt;
+let connectUserDebt;
+
+let connectUserDebtVirtualUser;
 
 
 beforeAll((done) => {
@@ -902,6 +905,11 @@ describe('POST /debts/single/:id/i_love_lsd', () => {
             .set('Authorization', 'Bearer ' + token)
             .then(resp => multipleDebt = resp.body)
             .then(() => {
+                return request(app)
+                    .post('/debts/' + multipleDebt.id + '/creation')
+                    .set('Authorization', 'Bearer ' + anotherUserToken);
+            })
+            .then(() => {
                 const operationPayload = {
                     debtsId: multipleDebt.id,
                     moneyAmount: 300,
@@ -1008,8 +1016,11 @@ describe('POST /debts/single/:id/i_love_lsd', () => {
             .put('/debts')
             .send({userId: anotherUser.id, countryCode: 'UA'})
             .set('Authorization', 'Bearer ' + token)
-            .then(resp => {
-                multipleDebt = resp.body;
+            .then(resp => multipleDebt = resp.body)
+            .then(() => {
+                return request(app)
+                    .post('/debts/' + multipleDebt.id + '/creation')
+                    .set('Authorization', 'Bearer ' + anotherUserToken);
             })
             .then(() => {
                 const operationPayload = {
@@ -1048,6 +1059,488 @@ describe('POST /debts/single/:id/i_love_lsd', () => {
                         expect(resp.body).toHaveProperty('statusAcceptor', null);
                     });
             });
+    });
+});
+
+describe('PUT /debts/single/:id/connect_user', () => {
+
+    beforeAll((done) => {
+        request(app)
+            .put('/debts/single')
+            .send({userName: 'Valera new', countryCode: 'UA'})
+            .set('Authorization', 'Bearer ' + token)
+            .then(debt => {
+                connectUserDebt = debt.body;
+                connectUserDebtVirtualUser = debt.body.user;
+                done();
+            });
+    });
+
+
+    it('should return 401 error if token is invalid', () => {
+        const promises = [];
+
+        promises.push(
+            request(app)
+                .put('/debts/single/' + connectUserDebt.id + '/connect_user')
+                .send({userId: anotherUser.id})
+        );
+        promises.push(
+            request(app)
+                .put('/debts/single/' + connectUserDebt.id + '/connect_user')
+                .send({userId: anotherUser.id})
+                .set('Authorization', 'Bearer ')
+        );
+        promises.push(
+            request(app)
+                .put('/debts/single/' + connectUserDebt.id + '/connect_user')
+                .send({userId: anotherUser.id})
+                .set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC')
+        );
+
+        return Promise.all(promises).then(responses => {
+            responses.forEach(resp => {
+                expect(resp.statusCode).toBe(401);
+            });
+        });
+    });
+
+    it('should return 400 or 404 if no param is set', () => {
+        const promises = [];
+        const params = [
+            '',
+            '/',
+            ' ',
+            null,
+            undefined
+        ];
+
+        params.forEach(param => {
+            promises.push(
+                request(app)
+                    .put('/debts/single/' + param + '/connect_user')
+                    .send({userId: anotherUser.id})
+                    .set('Authorization', 'Bearer ' + token)
+            );
+        });
+
+        return Promise.all(promises).then(responses => {
+            responses.forEach(resp => {
+                expect(resp.statusCode).toBeGreaterThanOrEqual(400);
+                expect(resp.statusCode).toBeLessThanOrEqual(404);
+            });
+        });
+    });
+
+    it('should return 400 if invalid param is set', () => {
+
+        return request(app)
+            .put('/debts/single/' + 'nbjvghfdtr567t8y8' + '/connect_user')
+            .send({userId: anotherUser.id})
+            .set('Authorization', 'Bearer ' + token)
+            .expect(400)
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('should return 400 if invalid userId is set', () => {
+        const promises = [];
+        const params = [
+            '',
+            '/',
+            ' ',
+            'nkbhgffytui78',
+            null,
+            undefined
+        ];
+        const params2 = [
+            {user: anotherUser.id},
+            {userId: user.id}
+        ];
+
+        params.forEach(param => {
+            promises.push(
+                request(app)
+                    .put('/debts/single/' + connectUserDebt.id + '/connect_user')
+                    .send({userId: param})
+                    .set('Authorization', 'Bearer ' + token)
+            );
+        });
+
+        params2.forEach(param => {
+            promises.push(
+                request(app)
+                    .put('/debts/single/' + connectUserDebt.id + '/connect_user')
+                    .send(param)
+                    .set('Authorization', 'Bearer ' + token)
+            );
+        });
+
+        return Promise.all(promises).then(responses => {
+            responses.forEach(resp => {
+                expect(resp.statusCode).toBeGreaterThanOrEqual(400);
+                expect(resp.statusCode).toBeLessThanOrEqual(404);
+            });
+        });
+    });
+
+    it('should reject user if he is not a user of this Debt entity', () => {
+
+        return request(app)
+            .put('/debts/single/' + connectUserDebt.id + '/connect_user')
+            .send({userId: anotherUser.id})
+            .set('Authorization', 'Bearer ' + thirdUserToken)
+            .expect(400)
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('should send an error if you try to connect user with whom you already have a debt', () => {
+        return request(app)
+            .put('/debts')
+            .send({userId: anotherUser.id, countryCode: 'UA'})
+            .set('Authorization', 'Bearer ' + token)
+            .expect(200)
+            .then(() => {
+                return request(app)
+                    .put('/debts/single/' + connectUserDebt.id + '/connect_user')
+                    .send({userId: anotherUser.id})
+                    .set('Authorization', 'Bearer ' + token)
+                    .expect(400);
+            })
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('should change debts status to CONNECT_USER & status acceptor to userId', () => {
+        return request(app)
+            .put('/debts/single/' + connectUserDebt.id + '/connect_user')
+            .send({userId: thirdUser.id})
+            .set('Authorization', 'Bearer ' + token)
+            .expect(200)
+            .then(debt => {
+                expect(debt.body).toHaveProperty('status', 'CONNECT_USER');
+                expect(debt.body).toHaveProperty('statusAcceptor', thirdUser.id);
+                checkIsObjectMatchesDebtsModel(debt.body, connectUserDebt, false);
+            });
+    });
+
+    it('should send an error if you try to connect user to debt that is already waiting for connection', () => {
+        return request(app)
+            .put('/debts/single/' + connectUserDebt.id + '/connect_user')
+            .send({userId: thirdUser.id, countryCode: 'UA'})
+            .set('Authorization', 'Bearer ' + token)
+            .expect(400)
+            .then(debt => {
+                expect(debt.body).toHaveProperty('error');
+            });
+    });
+
+    it('should send an error if you try to add an operation to debt that is already waiting for connection', () => {
+        return request(app)
+            .put('/operation')
+            .send({
+                debtsId: connectUserDebt.id,
+                moneyAmount: 300,
+                moneyReceiver: anotherUser.id,
+                description: 'test'
+            })
+            .set('Authorization', 'Bearer ' + token)
+            .expect(400)
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('GET /debts should return debts with status CONNECT_USER and proper status acceptor', () => {
+        return request(app)
+            .get('/debts')
+            .set('Authorization', 'Bearer ' + thirdUserToken)
+            .expect(200)
+            .then(resp => {
+                const debt = resp.body.debts.find(debt => debt.status === 'CONNECT_USER');
+                expect(debt).toBeTruthy();
+                expect(debt).toHaveProperty('status', 'CONNECT_USER');
+                expect(debt).toHaveProperty('statusAcceptor', thirdUser.id);
+            });
+    });
+
+    it('GET /debts/:id should return debts and change virtual user to user', () => {
+        return request(app)
+            .get('/debts/' + connectUserDebt.id)
+            .set('Authorization', 'Bearer ' + thirdUserToken)
+            .expect(200)
+            .then(resp => {
+                const debt = resp.body;
+                expect(debt).toBeTruthy();
+                expect(debt).toHaveProperty('status', 'CONNECT_USER');
+                expect(debt).toHaveProperty('statusAcceptor', thirdUser.id);
+            });
+    });
+});
+
+
+describe('POST /debts/single/:id/connect_user', () => {
+
+
+    it('should return 401 error if token is invalid', () => {
+        const promises = [];
+
+        promises.push(
+            request(app)
+                .post('/debts/single/' + connectUserDebt.id + '/connect_user')
+        );
+        promises.push(
+            request(app)
+                .post('/debts/single/' + connectUserDebt.id + '/connect_user')
+                .set('Authorization', 'Bearer ')
+        );
+        promises.push(
+            request(app)
+                .post('/debts/single/' + connectUserDebt.id + '/connect_user')
+                .set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC')
+        );
+
+        return Promise.all(promises).then(responses => {
+            responses.forEach(resp => {
+                expect(resp.statusCode).toBe(401);
+            });
+        });
+    });
+
+    it('should return 400 or 404 if no param is set', () => {
+        const promises = [];
+        const params = [
+            '',
+            '/',
+            ' ',
+            null,
+            undefined
+        ];
+
+        params.forEach(param => {
+            promises.push(
+                request(app)
+                    .post('/debts/single/' + param + '/connect_user')
+                    .set('Authorization', 'Bearer ' + token)
+            );
+        });
+
+        return Promise.all(promises).then(responses => {
+            responses.forEach(resp => {
+                expect(resp.statusCode).toBeGreaterThanOrEqual(400);
+                expect(resp.statusCode).toBeLessThanOrEqual(404);
+            });
+        });
+    });
+
+    it('should return 400 if invalid param is set', () => {
+
+        return request(app)
+            .post('/debts/single/' + 'nkbhjvghcfgdtryu' + '/connect_user')
+            .set('Authorization', 'Bearer ' + token)
+            .expect(400)
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('should reject user if he is not a user of this Debt entity', () => {
+
+        return request(app)
+            .post('/debts/single/' + connectUserDebt.id + '/connect_user')
+            .set('Authorization', 'Bearer ' + anotherUserToken)
+            .expect(400)
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('should send an error if you try to accept it with no status acceptor user', () => {
+
+        return request(app)
+            .post('/debts/single/' + connectUserDebt.id + '/connect_user')
+            .set('Authorization', 'Bearer ' + token)
+            .expect(400)
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('should change status to UNCHANGED, statusAcceptor to null & type to MULTIPLE_USERS', () => {
+
+        return request(app)
+            .post('/debts/single/' + connectUserDebt.id + '/connect_user')
+            .set('Authorization', 'Bearer ' + thirdUserToken)
+            .expect(200)
+            .then(resp => {
+                const debt = resp.body;
+
+                expect(debt).toHaveProperty('status', 'UNCHANGED');
+                expect(debt).toHaveProperty('statusAcceptor', null);
+                expect(debt).toHaveProperty('type', 'MULTIPLE_USERS');
+
+                connectUserDebt = debt;
+            });
+    });
+
+    it('should send an error if you try to accept it one more time', () => {
+
+        return request(app)
+            .post('/debts/single/' + connectUserDebt.id + '/connect_user')
+            .set('Authorization', 'Bearer ' + thirdUserToken)
+            .expect(400)
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('should change virtual user id on user id everywhere (moneyReceiver)', () => {
+        expect(JSON.stringify(connectUserDebt).indexOf(connectUserDebtVirtualUser.id) === -1).toBeTruthy();
+        expect(JSON.stringify(connectUserDebt).indexOf(thirdUser.id) !== -1);
+    });
+
+    it('should delete virtual user from db', () => {
+        return User
+            .findById(connectUserDebtVirtualUser.id)
+            .then(user => expect(user).toBeFalsy());
+    });
+
+    it('should delete virtual user picture from fs', (done) => {
+        fs.exists('public/images/' + connectUserDebtVirtualUser.picture.match(/[^\/]*$/), (exists) => {
+            expect(exists).toBe(false);
+            done();
+        });
+    });
+});
+
+
+describe('DELETE /debts/single/:id/connect_user', () => {
+
+    beforeAll((done) => {
+        request(app)
+            .put('/debts/single')
+            .send({userName: 'Valera new', countryCode: 'UA'})
+            .set('Authorization', 'Bearer ' + anotherUserToken)
+            .expect(200)
+            .then(debt => {
+
+                return request(app)
+                    .put('/debts/single/' + debt.body.id + '/connect_user')
+                    .send({userId: thirdUser.id})
+                    .set('Authorization', 'Bearer ' + anotherUserToken)
+                    .expect(200);
+            })
+            .then(debt => {
+                connectUserDebt = debt.body;
+                connectUserDebtVirtualUser = debt.body.user;
+
+                done();
+            });
+    });
+
+
+    it('should return 401 error if token is invalid', () => {
+        const promises = [];
+
+        promises.push(
+            request(app)
+                .delete('/debts/single/' + connectUserDebt.id + '/connect_user')
+        );
+        promises.push(
+            request(app)
+                .delete('/debts/single/' + connectUserDebt.id + '/connect_user')
+                .set('Authorization', 'Bearer ')
+        );
+        promises.push(
+            request(app)
+                .delete('/debts/single/' + connectUserDebt.id + '/connect_user')
+                .set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC')
+        );
+
+        return Promise.all(promises).then(responses => {
+            responses.forEach(resp => {
+                expect(resp.statusCode).toBe(401);
+            });
+        });
+    });
+
+    it('should return 400 or 404 if no param is set', () => {
+        const promises = [];
+        const params = [
+            '',
+            '/',
+            ' ',
+            null,
+            undefined
+        ];
+
+        params.forEach(param => {
+            promises.push(
+                request(app)
+                    .delete('/debts/single/' + param + '/connect_user')
+                    .set('Authorization', 'Bearer ' + thirdUserToken)
+            );
+        });
+
+        return Promise.all(promises).then(responses => {
+            responses.forEach(resp => {
+                expect(resp.statusCode).toBeGreaterThanOrEqual(400);
+                expect(resp.statusCode).toBeLessThanOrEqual(404);
+            });
+        });
+    });
+
+    it('should return 400 if invalid param is set', () => {
+
+        return request(app)
+            .delete('/debts/single/' + 'nkbhjvghcfgdtryu' + '/connect_user')
+            .set('Authorization', 'Bearer ' + thirdUserToken)
+            .expect(400)
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('should reject user if he is not a user of this Debt entity', () => {
+
+        return request(app)
+            .delete('/debts/single/' + connectUserDebt.id + '/connect_user')
+            .set('Authorization', 'Bearer ' + token)
+            .expect(400)
+            .then(resp => {
+                expect(resp.body).toHaveProperty('error');
+            });
+    });
+
+    it('should accept connected user request', () => {
+
+        return request(app)
+            .delete('/debts/single/' + connectUserDebt.id + '/connect_user')
+            .set('Authorization', 'Bearer ' + thirdUserToken)
+            .expect(200);
+    });
+
+    it('should accept main user request', () => {
+
+        return Debts
+            .findByIdAndUpdate(connectUserDebt.id, {status: 'CONNECT_USER', statusAcceptor: thirdUser.id})
+            .then(() => {
+
+                return request(app)
+                    .delete('/debts/single/' + connectUserDebt.id + '/connect_user')
+                    .set('Authorization', 'Bearer ' + anotherUserToken)
+                    .expect(200);
+            })
+            .then(debt => connectUserDebt = debt.body);
+    });
+
+    it('should change status to UNCHANGED and statusAcceptor to null', () => {
+        expect(connectUserDebt).toHaveProperty('status', 'UNCHANGED');
+        expect(connectUserDebt).toHaveProperty('statusAcceptor', null);
     });
 });
 
