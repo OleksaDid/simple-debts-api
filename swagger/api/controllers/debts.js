@@ -112,7 +112,7 @@ class DebtsController {
                     throw 'User not found';
                 }
                 const imageName = user.picture.match(/\/images\/.*/);
-                fs.unlink('public' + imageName);
+                fs.unlinkSync('public' + imageName);
                 return this.getAllUserDebts(req, res);
             })
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
