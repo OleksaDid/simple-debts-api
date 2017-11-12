@@ -35,7 +35,7 @@ export class UsersController {
                 User
                     .find({
                         'name': new RegExp(name, 'i'),
-                        $or: [{virtual: false}, {virtual: {$exists: false}}]
+                        virtual: false
                     })
                     .limit(15)
                     .exec()
