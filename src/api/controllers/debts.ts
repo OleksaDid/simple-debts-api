@@ -529,7 +529,7 @@ export class DebtsController {
                 if(!debt) {
                     throw 'Debt is not found';
                 }
-                this.getDebtsByIdHelper(req, res, debtsId);
+                this.getAllUserDebts(req, res);
             })
             .catch(err => this.errorHandler.errorHandler(req, res, err));
     };
