@@ -64,6 +64,7 @@ export class DebtsController {
      */
     createSingleDebt = (req: any, res: Response) => {
         req.assert('userName', 'User Name is not valid').notEmpty();
+        req.assert('userName', 'User Name is too long (30 characters max)').isLength({min: 1, max: 30});
         req.assert('countryCode', 'Country code is empty').notEmpty();
         req.assert('countryCode', 'Country code length must be 2').isLength({min: 2, max: 2});
 

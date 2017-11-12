@@ -1535,7 +1535,7 @@ describe('DELETE /debts/single/:id/connect_user', () => {
                     .set('Authorization', 'Bearer ' + anotherUserToken)
                     .expect(200);
             })
-            .then(debt => connectUserDebt = debt.body);
+            .then(debt => connectUserDebt = debt.body.debts.find(debt => connectUserDebt.id === debt.id));
     });
 
     it('should change status to UNCHANGED and statusAcceptor to null', () => {
