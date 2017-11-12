@@ -3,7 +3,7 @@ import { Id } from './common';
 import { Schema } from 'mongoose';
 import { MoneyOperationClass } from './MoneyOperation';
 
-type DebtsStatus = 'CREATION_AWAITING' | 'UNCHANGED' | 'CHANGE_AWAITING' | 'USER_DELETED';
+type DebtsStatus = 'CREATION_AWAITING' | 'UNCHANGED' | 'CHANGE_AWAITING' | 'USER_DELETED' | 'CONNECT_USER';
 export type DebtsAccountType = 'SINGLE_USER' | 'MULTIPLE_USERS';
 
 export type DebtsModel = mongoose.Document & {
@@ -117,7 +117,7 @@ StatusCodeDebts.prototype = Object.create(mongoose.SchemaType.prototype);
 
 
 StatusCodeDebts.prototype.cast = function(val) {
-    const statuses = ['CREATION_AWAITING', 'UNCHANGED', 'CHANGE_AWAITING', 'USER_DELETED'];
+    const statuses = ['CREATION_AWAITING', 'UNCHANGED', 'CHANGE_AWAITING', 'USER_DELETED', 'CONNECT_USER'];
 
     if(statuses.indexOf(val) === -1) {
         throw new Error('StatusCodeDebts: ' + val + ' is not valid');

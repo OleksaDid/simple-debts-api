@@ -310,6 +310,102 @@ paths:
             $ref: "#/definitions/ErrorResponse"
       security:
         - jwt: []
+  /debts/single/{id}/connect_user:
+    x-swagger-router-controller: debtsController
+    put:
+      tags:
+        - debts
+      description: Invite another user to join your single_user debt
+      operationId: connectUserToSingleDebt
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+        - in: body
+          required: true
+          name: body
+          schema:
+            type: object
+            required:
+              - userId
+            properties:
+              userId:
+                type: string
+                description: Id of user you want to invite
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+    post:
+      tags:
+        - debts
+      description: Accept invitation to connect to single_user debt
+      operationId: acceptUserConnection
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+    delete:
+      tags:
+        - debts
+      description: Accept invitation to connect to single_user debt
+      operationId: declineUserConnection
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: Id of Debt entity
+          type: string
+          format: id
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
   /login_status:
     x-swagger-router-controller: authController
     get:

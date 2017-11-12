@@ -10,7 +10,9 @@ export type UserModel = mongoose.Document & {
   resetPasswordToken: String,
   resetPasswordTokenExpires: Date,
   name: string,
-  picture: string
+  picture: string,
+
+  virtual: boolean,
 
   facebook: string,
   tokens: AuthToken[],
@@ -42,6 +44,8 @@ const userSchema = new mongoose.Schema({
   password: String,
   resetPasswordToken: String,
   resetPasswordTokenExpires: Date,
+
+  virtual: {type: Boolean, default: false},
 
   facebook: { type: String, index: true, unique: true, sparse: true },
   tokens: Array

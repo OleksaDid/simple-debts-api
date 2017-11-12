@@ -26,7 +26,8 @@ import * as passport from 'passport';
 import expressValidator = require('express-validator');
 import * as cors from 'cors';
 import errorHandler = require('errorhandler');
-import { rollbar } from "./api/helpers/rollbar";
+import { rollbar } from './api/helpers/rollbar';
+import { ErrorHandler } from './api/helpers/error-handler';
 
 /**
  * Controllers (route handlers).
@@ -35,7 +36,6 @@ import { AuthController } from './api/controllers/auth';
 import { UsersController } from './api/controllers/users';
 import { DebtsController } from './api/controllers/debts';
 import { OperationsController } from './api/controllers/moneyOperation';
-import { ErrorHandler } from "./api/helpers/error-handler";
 
 
 
@@ -144,8 +144,13 @@ export class App {
         v1.post('/debts/:id/creation', this.authController.checkJWTAccess, this.debtsController.acceptCreation);
         v1.delete('/debts/:id/creation', this.authController.checkJWTAccess, this.debtsController.declineCreation);
 
+
         v1.put('/debts/single', this.authController.checkJWTAccess, this.debtsController.createSingleDebt);
         v1.delete('/debts/single/:id', this.authController.checkJWTAccess, this.debtsController.deleteSingleDebt);
+
+        v1.put('/debts/single/:id/connect_user', this.authController.checkJWTAccess, this.debtsController.connectUserToSingleDebt);
+        v1.post('/debts/single/:id/connect_user', this.authController.checkJWTAccess, this.debtsController.acceptUserConnection);
+        v1.delete('/debts/single/:id/connect_user', this.authController.checkJWTAccess, this.debtsController.declineUserConnection);
 
         v1.post('/debts/single/:id/i_love_lsd', this.authController.checkJWTAccess, this.debtsController.acceptUserDeletedStatus);
 

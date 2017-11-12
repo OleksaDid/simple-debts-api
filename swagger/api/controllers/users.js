@@ -27,7 +27,10 @@ class UsersController {
                 .then((debts) => {
                 const usedUserIds = debts.map(debt => debt.users.find(user => user.id.toString() != userId).id);
                 User_1.default
-                    .find({ 'name': new RegExp(name, 'i') })
+                    .find({
+                    'name': new RegExp(name, 'i'),
+                    virtual: false
+                })
                     .limit(15)
                     .exec()
                     .then((users) => {

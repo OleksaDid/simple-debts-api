@@ -22,10 +22,10 @@ export class OperationsController {
      * @param description String Some notes about operation
      */
     createOperation = (req, res) => {
-        req.assert('debtsId', 'Debts Id is not valid').notEmpty();
+        req.assert('debtsId', 'Debts Id is not valid').isMongoId();
         req.assert('moneyAmount', 'moneyAmount is not a number').isNumeric();
         req.assert('moneyAmount', 'moneyAmount is empty').notEmpty();
-        req.assert('moneyReceiver', 'moneyReceiver is not valid').notEmpty();
+        req.assert('moneyReceiver', 'moneyReceiver is not valid').isMongoId();
         req.assert('description', 'description length is not valid').isLength({ min: 0, max: 70 });
 
         const errors = req.validationErrors();
@@ -48,7 +48,11 @@ export class OperationsController {
 
         return Debts
             .findOne(
-                { _id: debtsId, users: {'$all': [userId, moneyReceiver]}},
+                {
+                    _id: debtsId,
+                    users: {'$all': [userId, moneyReceiver]},
+                    $nor: [{status: 'CONNECT_USER'}, {status: 'CREATION_AWAITING'}]
+                    },
                 'users type'
             )
             .lean()
@@ -91,7 +95,7 @@ export class OperationsController {
      * @param operationId Id Id of the Operation that need to be deleted
      */
     deleteOperation = (req, res) => {
-        req.assert('id', 'Operation Id is not valid').notEmpty();
+        req.assert('id', 'Operation Id is not valid').isMongoId();
 
         const errors = req.validationErrors();
 
@@ -103,7 +107,12 @@ export class OperationsController {
         const userId = req.user.id;
 
         return Debts.findOneAndUpdate(
-            {'users': {'$in': [userId]}, 'moneyOperations': {'$in': [operationId]}, 'type': 'SINGLE_USER'},
+            {
+                'users': {'$in': [userId]},
+                'moneyOperations': {'$in': [operationId]},
+                'type': 'SINGLE_USER',
+                $nor: [{status: 'CONNECT_USER'}, {status: 'CREATION_AWAITING'}]
+            },
             {'$pull': {'moneyOperations': operationId}}
             )
             .populate({
@@ -133,7 +142,7 @@ export class OperationsController {
      * @param operationId Id Id of the Operation that need to be accepted
      */
     acceptOperation = (req, res) => {
-        req.assert('id', 'Operation Id is not valid').notEmpty();
+        req.assert('id', 'Operation Id is not valid').isMongoId();
 
         const errors = req.validationErrors();
 
@@ -146,7 +155,11 @@ export class OperationsController {
 
         return MoneyOperation
             .findOneAndUpdate(
-                { _id: operationId, statusAcceptor: new this.ObjectId(userId), status: 'CREATION_AWAITING'},
+                {
+                    _id: operationId,
+                    statusAcceptor: new this.ObjectId(userId),
+                    status: 'CREATION_AWAITING'
+                },
                 { status: 'UNCHANGED', statusAcceptor: null }
             )
             .then((resp: any) => {
@@ -183,7 +196,7 @@ export class OperationsController {
      * @param operationId Id Id of the Operation that need to be declined
      */
     declineOperation = (req, res) => {
-        req.assert('id', 'Operation Id is not valid').notEmpty();
+        req.assert('id', 'Operation Id is not valid').isMongoId();
 
         const errors = req.validationErrors();
 
