@@ -32,3 +32,14 @@ export class CreateVirtualUserDto {
         this.virtual = true;
     }
 }
+
+export class CloneRealUserToVirtualDto {
+    name: string;
+    picture: string;
+    virtual = true;
+
+    constructor(name: string, picture: string) {
+        this.name = name + ' BOT';
+        this.picture = picture;
+    }
+}

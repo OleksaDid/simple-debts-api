@@ -395,14 +395,14 @@ describe('GET /debts/:id', () => {
 });
 
 
-describe('DELETE /debts/single/:id', () => {
+describe('DELETE /debts/:id (single)', () => {
 
     it('should return 401 error if token is invalid', () => {
         const promises = [];
 
-        promises.push(request(app).delete('/debts/single/' + singleDebt.id));
-        promises.push(request(app).delete('/debts/single/' + singleDebt.id).set('Authorization', 'Bearer '));
-        promises.push(request(app).delete('/debts/single/' + singleDebt.id).set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
+        promises.push(request(app).delete('/debts/' + singleDebt.id));
+        promises.push(request(app).delete('/debts/' + singleDebt.id).set('Authorization', 'Bearer '));
+        promises.push(request(app).delete('/debts/' + singleDebt.id).set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
 
         return Promise.all(promises).then(responses => {
             responses.forEach(resp => {
@@ -422,7 +422,7 @@ describe('DELETE /debts/single/:id', () => {
         ];
 
         params.forEach(param => {
-           promises.push(request(app).delete('/debts/single/' + param).set('Authorization', 'Bearer ' + token));
+           promises.push(request(app).delete('/debts/' + param).set('Authorization', 'Bearer ' + token));
         });
 
         return Promise.all(promises).then(responses => {
@@ -436,7 +436,7 @@ describe('DELETE /debts/single/:id', () => {
     it('should return 400 if invalid param is set', () => {
 
         return request(app)
-            .delete('/debts/single/' + 'pj2i4hui3gyfu')
+            .delete('/debts/' + 'pj2i4hui3gyfu')
             .set('Authorization', 'Bearer ' + token)
             .expect(400)
             .then(resp => {
@@ -447,7 +447,7 @@ describe('DELETE /debts/single/:id', () => {
     it('should return all debts', () => {
 
         return request(app)
-            .delete('/debts/single/' + singleDebt.id)
+            .delete('/debts/' + singleDebt.id)
             .set('Authorization', 'Bearer ' + token)
             .expect(200)
             .then(resp => {

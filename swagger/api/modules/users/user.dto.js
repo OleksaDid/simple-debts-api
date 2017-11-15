@@ -24,4 +24,12 @@ class CreateVirtualUserDto {
     }
 }
 exports.CreateVirtualUserDto = CreateVirtualUserDto;
+class CloneRealUserToVirtualDto {
+    constructor(name, picture) {
+        this.virtual = true;
+        this.name = name + ' BOT';
+        this.picture = picture;
+    }
+}
+exports.CloneRealUserToVirtualDto = CloneRealUserToVirtualDto;
 //# sourceMappingURL=user.dto.js.map

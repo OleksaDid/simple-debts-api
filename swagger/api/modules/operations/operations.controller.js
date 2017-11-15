@@ -1,17 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose = require("mongoose");
-const debts_controller_1 = require("../debts/debts.controller");
 const debt_schema_1 = require("../debts/debt.schema");
 const debt_interface_1 = require("../debts/debt.interface");
 const operation_dto_1 = require("./operation.dto");
 const operation_schema_1 = require("./operation.schema");
 const operation_interface_1 = require("./operation.interface");
 const error_handler_service_1 = require("../../services/error-handler.service");
+const debts_service_1 = require("../debts/debts.service");
 class OperationsController {
     constructor() {
         this.ObjectId = mongoose.Types.ObjectId;
-        this.debtsController = new debts_controller_1.DebtsController();
+        this.debtsService = new debts_service_1.DebtsService();
         this.errorHandler = new error_handler_service_1.ErrorHandler();
         /*
          * PUT
@@ -70,7 +70,7 @@ class OperationsController {
                 debts.moneyOperations.push(operationId);
                 return debts.save().then(() => debts);
             })
-                .then((debts) => this.debtsController.getDebtsByIdHelper(req, res, debts._id))
+                .then((debts) => this.debtsService.getDebtsById(req, res, debts._id))
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
         /*
@@ -114,7 +114,7 @@ class OperationsController {
                     .save()
                     .then(() => debt);
             })
-                .then((debt) => this.debtsController.getDebtsByIdHelper(req, res, debt._id))
+                .then((debt) => this.debtsService.getDebtsById(req, res, debt._id))
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
         /*
@@ -158,7 +158,7 @@ class OperationsController {
                         .then(() => debts);
                 });
             })
-                .then((debts) => this.debtsController.getDebtsByIdHelper(req, res, debts._id))
+                .then((debts) => this.debtsService.getDebtsById(req, res, debts._id))
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
         /*
@@ -202,7 +202,7 @@ class OperationsController {
                 }
                 return debtObject.save();
             })
-                .then((debt) => this.debtsController.getDebtsByIdHelper(req, res, debt._id))
+                .then((debt) => this.debtsService.getDebtsById(req, res, debt._id))
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
     }

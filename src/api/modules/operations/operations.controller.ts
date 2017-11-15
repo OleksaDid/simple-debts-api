@@ -1,5 +1,4 @@
 import * as mongoose from 'mongoose';
-import { DebtsController } from '../debts/debts.controller';
 import { Request, Response } from 'express';
 import { Id } from '../../common/types';
 import Debts from '../debts/debt.schema';
@@ -8,12 +7,13 @@ import { OperationDto } from './operation.dto';
 import Operation from './operation.schema';
 import { OperationInterface, OperationStatus } from './operation.interface';
 import { ErrorHandler } from '../../services/error-handler.service';
+import { DebtsService } from '../debts/debts.service';
 
 
 
 export class OperationsController {
     private ObjectId = mongoose.Types.ObjectId;
-    private debtsController = new DebtsController();
+    private debtsService = new DebtsService();
     private errorHandler = new ErrorHandler();
 
 
@@ -86,7 +86,7 @@ export class OperationsController {
 
                 return debts.save().then(() => debts);
             })
-            .then((debts: DebtInterface) => this.debtsController.getDebtsByIdHelper(req, res, debts._id))
+            .then((debts: DebtInterface) => this.debtsService.getDebtsById(req, res, debts._id))
             .catch(err => this.errorHandler.errorHandler(req, res, err));
 
     };
@@ -138,7 +138,7 @@ export class OperationsController {
                     .save()
                     .then(() => debt);
             })
-            .then((debt: DebtInterface) => this.debtsController.getDebtsByIdHelper(req, res, debt._id))
+            .then((debt: DebtInterface) => this.debtsService.getDebtsById(req, res, debt._id))
             .catch(err => this.errorHandler.errorHandler(req, res, err));
     };
 
@@ -191,7 +191,7 @@ export class OperationsController {
                             .then(() => debts);
                     });
             })
-            .then((debts: DebtInterface) => this.debtsController.getDebtsByIdHelper(req, res, debts._id))
+            .then((debts: DebtInterface) => this.debtsService.getDebtsById(req, res, debts._id))
             .catch(err => this.errorHandler.errorHandler(req, res, err));
     };
 
@@ -247,7 +247,7 @@ export class OperationsController {
 
                 return debtObject.save();
             })
-            .then((debt: DebtInterface) => this.debtsController.getDebtsByIdHelper(req, res, debt._id))
+            .then((debt: DebtInterface) => this.debtsService.getDebtsById(req, res, debt._id))
             .catch(err => this.errorHandler.errorHandler(req, res, err));
     };
 

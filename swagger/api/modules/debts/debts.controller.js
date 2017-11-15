@@ -10,9 +10,12 @@ const get_images_path_service_1 = require("../../services/get-images-path.servic
 const operation_schema_1 = require("../operations/operation.schema");
 const operation_interface_1 = require("../operations/operation.interface");
 const error_handler_service_1 = require("../../services/error-handler.service");
+const constants_1 = require("../../common/constants");
+const debts_service_1 = require("./debts.service");
 class DebtsController {
     constructor() {
         this.errorHandler = new error_handler_service_1.ErrorHandler();
+        this.debtsService = new debts_service_1.DebtsService();
         /*
          * PUT
          * /debts
@@ -51,7 +54,7 @@ class DebtsController {
                 const newDebts = new debt_dto_1.DebtDto(creatorId, userId, debt_interface_1.DebtsAccountType.MULTIPLE_USERS, countryCode);
                 return debt_schema_1.default.create(newDebts);
             })
-                .then((debt) => this.getDebtsByIdHelper(req, res, debt._id))
+                .then((debt) => this.debtsService.getDebtsById(req, res, debt._id))
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
         /*
@@ -94,15 +97,15 @@ class DebtsController {
                 })
                     .then(() => debt_schema_1.default.create(new debt_dto_1.DebtDto(creatorId, user._id, debt_interface_1.DebtsAccountType.SINGLE_USER, countryCode)));
             })
-                .then(debt => this.getDebtsByIdHelper(req, res, debt._id))
+                .then(debt => this.debtsService.getDebtsById(req, res, debt._id))
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
         /*
-         * DELETE
-         * /debts/single
-         * @param debtsId Id Id of Debts you want to delete
-         */
-        this.deleteSingleDebt = (req, res) => {
+        * DELETE
+        * /debts/:id
+        * @param id Id Debts Id
+        */
+        this.deleteDebt = (req, res) => {
             req.assert('id', 'Debts Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
@@ -111,21 +114,18 @@ class DebtsController {
             const debtsId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
             const userId = req['user'].id;
             return debt_schema_1.default
-                .findOneAndRemove({ _id: debtsId, users: { $in: [userId] }, type: debt_interface_1.DebtsAccountType.SINGLE_USER })
+                .findOne({ _id: debtsId, users: { $in: [userId] } })
+                .populate({ path: 'users', select: 'name picture' })
                 .then((debt) => {
                 if (!debt) {
                     throw 'Debts not found';
                 }
-                const virtualUserId = debt.users.find(user => user.toString() != userId);
-                return user_schema_1.default.findByIdAndRemove(virtualUserId);
-            })
-                .then((user) => {
-                if (!user) {
-                    throw 'User not found';
+                if (debt.type === debt_interface_1.DebtsAccountType.SINGLE_USER) {
+                    return this.debtsService.deleteSingleDebt(req, res, debt, userId);
                 }
-                const imageName = user.picture.match(/\/images\/.*/);
-                fs.unlinkSync('public' + imageName);
-                return this.getAllUserDebts(req, res);
+                else if (debt.type === debt_interface_1.DebtsAccountType.MULTIPLE_USERS) {
+                    return this.debtsService.deleteMultipleDebts(req, res, debt, userId);
+                }
             })
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
@@ -148,7 +148,7 @@ class DebtsController {
                 if (!debt) {
                     throw 'Debts not found';
                 }
-                return this.getAllUserDebts(req, res);
+                return this.debtsService.getAllUserDebts(req, res);
             })
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
@@ -171,7 +171,7 @@ class DebtsController {
                 if (!debt) {
                     throw 'Debts not found';
                 }
-                return this.getAllUserDebts(req, res);
+                return this.debtsService.getAllUserDebts(req, res);
             })
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
@@ -180,97 +180,14 @@ class DebtsController {
          * /debts
          */
         this.getAllUserDebts = (req, res) => {
-            const userId = req['user'].id;
-            return debt_schema_1.default
-                .find({
-                $or: [
-                    { users: { '$all': [userId] } },
-                    { status: debt_interface_1.DebtsStatus.CONNECT_USER, statusAcceptor: userId }
-                ]
-            })
-                .populate({ path: 'users', select: 'name picture virtual' })
-                .sort({ status: 1, updatedAt: -1 })
-                .lean()
-                .exec((err, debts) => {
-                if (err) {
-                    throw err;
-                }
-                if (debts) {
-                    const debtsArray = debts.map(debt => this.formatDebt(debt, userId, false));
-                    res.json(new debt_dto_1.DebtsListDto(debtsArray, userId));
-                }
-            })
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+            return this.debtsService.getAllUserDebts(req, res);
         };
         /*
         * GET
         * /debts/:id
         */
         this.getDebtsById = (req, res) => {
-            return this.getDebtsByIdHelper(req, res);
-        };
-        /*
-        * DELETE
-        * /debts/:id
-        * Deletes user from MULTIPLE_USERS Debts entity
-        */
-        this.deleteMultipleDebts = (req, res) => {
-            req.assert('id', 'Debts Id is not valid').isMongoId();
-            const errors = req.validationErrors();
-            if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
-            }
-            const debtsId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
-            const userId = req['user'].id;
-            let deletedUserInfo;
-            let createdVirtualUser;
-            return debt_schema_1.default
-                .findOne({ _id: debtsId, type: debt_interface_1.DebtsAccountType.MULTIPLE_USERS, users: { $in: [userId] } })
-                .populate({ path: 'users', select: 'name picture' })
-                .lean()
-                .then((debt) => {
-                if (!debt) {
-                    throw 'Debt is not found';
-                }
-                deletedUserInfo = debt['users'].find(user => user['_id'].toString() === userId.toString());
-                deletedUserInfo.name += ' BOT';
-                deletedUserInfo.virtual = true;
-                delete deletedUserInfo._id;
-                return user_schema_1.default.create([deletedUserInfo]);
-            })
-                .then((user) => {
-                createdVirtualUser = user[0];
-                return debt_schema_1.default.findByIdAndUpdate(debtsId, {
-                    type: debt_interface_1.DebtsAccountType.SINGLE_USER,
-                    status: debt_interface_1.DebtsStatus.USER_DELETED,
-                    $pull: { 'users': userId }
-                });
-            })
-                .then((debt) => {
-                debt.statusAcceptor = debt.users.find(user => user.toString() !== userId.toString());
-                debt.users.push(createdVirtualUser._id);
-                const promises = [];
-                debt['moneyOperations']
-                    .forEach(operationId => promises.push(operation_schema_1.default.findById(operationId)));
-                return debt
-                    .save()
-                    .then(() => Promise.all(promises));
-            })
-                .then((operations) => {
-                const promises = operations.map(operation => {
-                    if (operation.moneyReceiver.toString() === userId.toString()) {
-                        operation.moneyReceiver = createdVirtualUser._id;
-                    }
-                    if (operation.statusAcceptor.toString() === userId.toString()) {
-                        operation.statusAcceptor = null;
-                        operation.status = operation_interface_1.OperationStatus.UNCHANGED;
-                    }
-                    return operation.save();
-                });
-                return Promise.all(promises);
-            })
-                .then(() => this.getAllUserDebts(req, res))
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+            return this.debtsService.getDebtsById(req, res);
         };
         /*
         * POST /debts/single/:id/i_love_lsd
@@ -311,7 +228,7 @@ class DebtsController {
                 }
                 return debt.save();
             })
-                .then(() => this.getDebtsByIdHelper(req, res, debtsId))
+                .then(() => this.debtsService.getDebtsById(req, res, debtsId))
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
         /*
@@ -357,7 +274,7 @@ class DebtsController {
                 debt.statusAcceptor = anotherUserId;
                 return debt.save();
             })
-                .then(() => this.getDebtsByIdHelper(req, res, debtsId))
+                .then(() => this.debtsService.getDebtsById(req, res, debtsId))
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
         /*
@@ -405,7 +322,7 @@ class DebtsController {
                     if (!user) {
                         throw 'Virtual user is not found';
                     }
-                    const imageName = user.picture.match(/\/images\/.*/);
+                    const imageName = user.picture.match(constants_1.IMAGES_FOLDER_FILE_PATTERN);
                     fs.unlinkSync('public' + imageName);
                 }));
                 promises.push(debt_schema_1.default.findByIdAndUpdate(debtsId, {
@@ -413,7 +330,7 @@ class DebtsController {
                 }));
                 return debt.save().then(() => Promise.all(promises));
             })
-                .then(() => this.getDebtsByIdHelper(req, res, debtsId))
+                .then(() => this.debtsService.getDebtsById(req, res, debtsId))
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
         /*
@@ -443,65 +360,10 @@ class DebtsController {
                 if (!debt) {
                     throw 'Debt is not found';
                 }
-                return this.getAllUserDebts(req, res);
+                return this.debtsService.getAllUserDebts(req, res);
             })
                 .catch(err => this.errorHandler.errorHandler(req, res, err));
         };
-        this.getDebtsByIdHelper = (req, res, debts) => {
-            if (!debts) {
-                req.assert('id', 'Debts Id is not valid').isMongoId();
-                const errors = req.validationErrors();
-                if (errors) {
-                    return this.errorHandler.errorHandler(req, res, errors);
-                }
-            }
-            const debtsId = debts ? debts : (req['swagger'] ? req['swagger'].params.id.value : req.params.id);
-            const userId = req['user'].id;
-            return debt_schema_1.default
-                .findById(debtsId)
-                .populate({
-                path: 'moneyOperations',
-                select: 'date moneyAmount moneyReceiver description status statusAcceptor',
-                options: { sort: { 'date': -1 } }
-            })
-                .populate({ path: 'users', select: 'name picture virtual' })
-                .lean()
-                .then((debt) => {
-                if (!debt) {
-                    throw 'Debts with id ' + debtsId + ' is not found';
-                }
-                res.json(this.formatDebt(debt, userId, true));
-            })
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
-        };
-    }
-    formatDebt(debt, userId, saveOperations) {
-        let newDebt = debt;
-        // make preview for user connect
-        if (debt.status === debt_interface_1.DebtsStatus.CONNECT_USER && debt.statusAcceptor === userId) {
-            const userToChange = newDebt.users.find(user => user['virtual']);
-            newDebt = JSON.parse(JSON.stringify(newDebt).replace(userToChange['_id'].toString(), userId.toString()));
-        }
-        newDebt['user'] = newDebt.users.find(user => user['_id'].toString() != userId);
-        newDebt['user'].id = newDebt['user']._id;
-        newDebt.id = debt._id;
-        delete newDebt._id;
-        delete newDebt['user']._id;
-        delete newDebt['user'].virtual;
-        delete newDebt.users;
-        delete newDebt.__v;
-        delete newDebt['createdAt'];
-        delete newDebt['updatedAt'];
-        if (saveOperations) {
-            newDebt.moneyOperations.forEach(operation => {
-                operation.id = operation._id;
-                delete operation._id;
-            });
-        }
-        else {
-            delete newDebt.moneyOperations;
-        }
-        return newDebt;
     }
 }
 exports.DebtsController = DebtsController;
