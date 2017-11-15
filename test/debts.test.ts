@@ -1,8 +1,10 @@
-import {default as Debts, DebtsListClass, DebtsModelClass} from "../src/api/models/Debts";
 import * as mongoose from 'mongoose';
-import User from "../src/api/models/User";
 import * as fs from 'fs';
 import {App} from "../src/app";
+import {DebtDto} from "../src/api/modules/debts/debt.dto";
+import {DebtsAccountType} from "../src/api/modules/debts/debt.interface";
+import User from "../src/api/modules/users/user.schema";
+import Debts from "../src/api/modules/debts/debt.schema";
 
 const request = require('supertest');
 const app = new App().application;
@@ -152,10 +154,10 @@ describe('PUT /debts', () => {
             .set('Authorization', 'Bearer ' + token)
             .expect(200)
             .then(debt => {
-                const expectedDebts: any = new DebtsModelClass(
+                const expectedDebts: any = new DebtDto(
                     user.id,
                     anotherUser.id,
-                    'MULTIPLE_USERS',
+                    DebtsAccountType.MULTIPLE_USERS,
                     'UA'
                 );
 
@@ -237,10 +239,10 @@ describe('PUT /debts/single', () => {
             .set('Authorization', 'Bearer ' + token)
             .expect(200)
             .then(debt => {
-                const expectedDebts: any = new DebtsModelClass(
+                const expectedDebts: any = new DebtDto(
                     user.id,
                     anotherUser.id,
-                    'SINGLE_USER',
+                    DebtsAccountType.SINGLE_USER,
                     'UA'
                 );
 
@@ -304,10 +306,10 @@ describe('GET /debts', () => {
             .expect(200)
             .then(resp => {
                 const debts = resp.body;
-                const debtsModel: any = new DebtsModelClass(
+                const debtsModel: any = new DebtDto(
                     user.id,
                     anotherUser.id,
-                    'MULTIPLE_USERS',
+                    DebtsAccountType.MULTIPLE_USERS,
                     'UA'
                 );
 
@@ -450,10 +452,10 @@ describe('DELETE /debts/single/:id', () => {
             .expect(200)
             .then(resp => {
                 const debts = resp.body;
-                const debtsModel: any = new DebtsModelClass(
+                const debtsModel: any = new DebtDto(
                     user.id,
                     anotherUser.id,
-                    'MULTIPLE_USERS',
+                    DebtsAccountType.MULTIPLE_USERS,
                     'UA'
                 );
 
