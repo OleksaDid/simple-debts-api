@@ -744,7 +744,7 @@ definitions:
         description: Used to show currency
       status:
         type: string
-        format: CREATION_AWAITING | UNCHANGED | CHANGE_AWAITING | USER_DELETED
+        format: CREATION_AWAITING | UNCHANGED | CHANGE_AWAITING | USER_DELETED | CONNECT_USER
       statusAcceptor:
         type: string
         format: id | null
