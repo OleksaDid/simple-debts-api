@@ -120,7 +120,7 @@ paths:
     delete:
       tags:
         - debts
-      description: Delete yourself from Debt entity by Id
+      description: Delete yourself from multiple users Debt entity, or completely delete single user Debt entity by Id
       operationId: deleteMultipleDebts
       parameters:
         - in: path
@@ -233,37 +233,6 @@ paths:
                 description: Used to show currency
                 minLength: 2
                 maxLength: 2
-      responses:
-        "200":
-          description: Success
-          schema:
-            type: array
-            items:
-              $ref: "#/definitions/Debt"
-        "400":
-          description: Error
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-      security:
-        - jwt: []
-  /debts/single/{id}:
-    x-swagger-router-controller: debtsController
-    delete:
-      tags:
-        - debts
-      description: Deletes single Debt entity
-      operationId: deleteSingleDebt
-      parameters:
-        - in: path
-          required: true
-          name: id
-          description: Id of Debt entity
-          type: string
-          format: id
       responses:
         "200":
           description: Success
