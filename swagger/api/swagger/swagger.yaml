@@ -150,7 +150,7 @@ paths:
     x-swagger-router-controller: debtsController
     post:
       tags:
-        - debts
+        - debts/multiple
       description: Accepts Debt creation request
       operationId: acceptCreation
       parameters:
@@ -179,7 +179,7 @@ paths:
         - jwt: []
     delete:
       tags:
-        - debts
+        - debts/multiple
       description: Declines Debt creation request
       operationId: declineCreation
       parameters:
@@ -210,7 +210,7 @@ paths:
     x-swagger-router-controller: debtsController
     put:
       tags:
-        - debts
+        - debts/single
       description: Create new Debt entity for single user
       operationId: createSingleDebt
       parameters:
@@ -254,7 +254,7 @@ paths:
     x-swagger-router-controller: debtsController
     post:
       tags:
-        - debts
+        - debts/single
       description: Accepts the fact that another user has been deleted from Debt entity
       operationId: acceptUserDeletedStatus
       parameters:
@@ -283,7 +283,7 @@ paths:
     x-swagger-router-controller: debtsController
     put:
       tags:
-        - debts
+        - debts/single
       description: Invite another user to join your single_user debt
       operationId: connectUserToSingleDebt
       parameters:
@@ -321,7 +321,7 @@ paths:
         - jwt: []
     post:
       tags:
-        - debts
+        - debts/single
       description: Accept invitation to connect to single_user debt
       operationId: acceptUserConnection
       parameters:
@@ -348,7 +348,7 @@ paths:
         - jwt: []
     delete:
       tags:
-        - debts
+        - debts/single
       description: Accept invitation to connect to single_user debt
       operationId: declineUserConnection
       parameters:
