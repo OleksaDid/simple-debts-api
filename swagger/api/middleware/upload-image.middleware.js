@@ -29,7 +29,7 @@ const uploadImage = (req, res, next) => {
     }).single('image');
     upload(req, res, err => {
         if (err) {
-            return errorHandler.errorHandler(req, res, err);
+            return errorHandler.responseError(req, res, err);
         }
         next();
     });

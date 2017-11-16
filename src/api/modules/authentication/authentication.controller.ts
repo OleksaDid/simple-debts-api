@@ -75,12 +75,12 @@ export class AuthController {
         if (err) {
             if (err.oauthError) {
                 const oauthError = JSON.parse(err.oauthError.data);
-                return this.errorHandler.errorHandler(req, res, oauthError.error.message);
+                this.errorHandler.responseError(req, res, oauthError.error.message);
             } else {
-                return this.errorHandler.errorHandler(req, res, err);
+                this.errorHandler.responseError(req, res, err);
             }
         } else if(!user || Object.keys(user).length === 0) {
-            return this.errorHandler.errorHandler(req, res, errorMessage);
+            this.errorHandler.responseError(req, res, errorMessage);
         } else {
             res.json(user);
         }

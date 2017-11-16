@@ -17,7 +17,7 @@ class UsersController {
             req.assert('name', 'User name is empty').notEmpty();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const name = req['swagger'] ? req['swagger'].params.name.value : req.query.name;
             const userId = req['user'].id;
@@ -43,7 +43,7 @@ class UsersController {
                     .map(user => new user_dto_1.SendUserDto(user.id, user.name, user.picture));
                 return res.status(200).json(sendUsers);
             })
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
          * POST
@@ -56,7 +56,7 @@ class UsersController {
             req.assert('name', 'Name field should not be empty').notEmpty();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const name = req['swagger'] ? req['swagger'].params.name.value : req.body.name;
             const userId = req['user'].id;
@@ -65,12 +65,12 @@ class UsersController {
             return user_schema_1.default.findByIdAndUpdate(userId, userInfo)
                 .then((updatedUser) => {
                 if (!updatedUser) {
-                    return this.errorHandler.errorHandler(req, res, 'User not found');
+                    throw new Error('User not found');
                 }
                 const user = new user_dto_1.SendUserDto(updatedUser.id, userInfo.name, userInfo.picture || updatedUser.picture);
                 return res.status(200).json(user);
             })
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
     }
 }

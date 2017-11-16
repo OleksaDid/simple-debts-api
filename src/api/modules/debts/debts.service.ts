@@ -75,7 +75,7 @@ export class DebtsService {
             .then(() => User.findByIdAndRemove(virtualUserId))
             .then((user: UserInterface) => {
                 if(!user) {
-                    throw 'User not found';
+                    throw new Error('User not found');
                 }
 
                 const imageName = user.picture.match(IMAGES_FOLDER_FILE_PATTERN);
@@ -99,29 +99,16 @@ export class DebtsService {
             .populate({ path: 'users', select: 'name picture virtual'})
             .sort({status: 1, updatedAt: -1})
             .lean()
-            .exec((err, debts: DebtInterface[]) => {
-                if(err) {
-                    throw err;
-                }
-
+            .then((debts: DebtInterface[]) => {
                 if(debts) {
                     const debtsArray = debts.map(debt => this.formatDebt(debt, userId, false));
 
                     res.json(new DebtsListDto(debtsArray, userId));
                 }
-            })
-            .catch(err => this.errorHandler.errorHandler(req, res, err));
+            });
     };
 
     getDebtsById = (req: Request, res: Response, debts?: Id) => {
-        if(!debts) {
-            req.assert('id', 'Debts Id is not valid').isMongoId();
-            const errors = req.validationErrors();
-            if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
-            }
-        }
-
         const debtsId = debts ? debts : (req['swagger'] ? req['swagger'].params.id.value : req.params.id);
         const userId = req['user'].id;
 
@@ -136,12 +123,11 @@ export class DebtsService {
             .lean()
             .then((debt: DebtInterface) => {
                 if(!debt) {
-                    throw 'Debts with id ' + debtsId + ' is not found';
+                    throw new Error('Debts with id ' + debtsId + ' is not found');
                 }
 
                 res.json(this.formatDebt(debt, userId, true));
-            })
-            .catch(err => this.errorHandler.errorHandler(req, res, err));
+            });
     };
 
 

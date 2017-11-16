@@ -59,7 +59,7 @@ class DebtsService {
                 .then(() => user_schema_1.default.findByIdAndRemove(virtualUserId))
                 .then((user) => {
                 if (!user) {
-                    throw 'User not found';
+                    throw new Error('User not found');
                 }
                 const imageName = user.picture.match(constants_1.IMAGES_FOLDER_FILE_PATTERN);
                 fs.unlinkSync('public' + imageName);
@@ -78,25 +78,14 @@ class DebtsService {
                 .populate({ path: 'users', select: 'name picture virtual' })
                 .sort({ status: 1, updatedAt: -1 })
                 .lean()
-                .exec((err, debts) => {
-                if (err) {
-                    throw err;
-                }
+                .then((debts) => {
                 if (debts) {
                     const debtsArray = debts.map(debt => this.formatDebt(debt, userId, false));
                     res.json(new debt_dto_1.DebtsListDto(debtsArray, userId));
                 }
-            })
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+            });
         };
         this.getDebtsById = (req, res, debts) => {
-            if (!debts) {
-                req.assert('id', 'Debts Id is not valid').isMongoId();
-                const errors = req.validationErrors();
-                if (errors) {
-                    return this.errorHandler.errorHandler(req, res, errors);
-                }
-            }
             const debtsId = debts ? debts : (req['swagger'] ? req['swagger'].params.id.value : req.params.id);
             const userId = req['user'].id;
             return debt_schema_1.default
@@ -110,11 +99,10 @@ class DebtsService {
                 .lean()
                 .then((debt) => {
                 if (!debt) {
-                    throw 'Debts with id ' + debtsId + ' is not found';
+                    throw new Error('Debts with id ' + debtsId + ' is not found');
                 }
                 res.json(this.formatDebt(debt, userId, true));
-            })
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+            });
         };
     }
     formatDebt(debt, userId, saveOperations) {

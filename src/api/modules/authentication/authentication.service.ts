@@ -58,7 +58,7 @@ export class AuthenticationService {
                         if (user) {
                             done(null, new SendUserDto(user._id, user.name, user.picture));
                         } else {
-                            done('Invalid JWT Token');
+                            throw new Error('Invalid JWT Token');
                         }
                     })
                     .catch(err => done(err));
@@ -109,18 +109,18 @@ export class AuthenticationService {
                         .then((user: UserInterface) => {
                             // check to see if theres already a user with that email
                             if (user) {
-                                throw 'User with this email already exists';
+                                throw new Error('User with this email already exists');
                             }
 
                             if(!email.match(EMAIL_PATTERN)) {
-                                throw 'Email is wrong';
+                                throw new Error('Email is wrong');
                             }
 
                             if(
                                 password.length < this.passwordLengthRestrictions.min ||
                                 password.length > this.passwordLengthRestrictions.max
                             ) {
-                                throw 'Invalid password length';
+                                throw new Error('Invalid password length');
                             }
 
                             // if there is no user with that email
@@ -166,12 +166,12 @@ export class AuthenticationService {
 
                         // if no user is found, return the message
                         if (!user) {
-                            throw 'No user is found';
+                            throw new Error('No user is found');
                         }
 
                         // if the user is found but the password is wrong
                         if (!user.validPassword(password)) {
-                            throw 'Wrong password';
+                            throw new Error('Wrong password');
                         }
 
                         // all is well, return successful user

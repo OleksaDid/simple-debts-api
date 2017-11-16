@@ -29,7 +29,7 @@ class OperationsController {
             req.assert('description', 'description length is not valid').isLength({ min: 0, max: 70 });
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const debtsId = req['swagger'] ? req['swagger'].params.debtsId.value : req.body.debtsId;
             const moneyAmount = req['swagger'] ? req['swagger'].params.moneyAmount.value : req.body.moneyAmount;
@@ -38,7 +38,7 @@ class OperationsController {
             const userId = req['user'].id;
             let operationId;
             if (+moneyAmount <= 0) {
-                return this.errorHandler.errorHandler(req, res, 'Money amount is less then or equal 0');
+                return this.errorHandler.responseError(req, res, 'Money amount is less then or equal 0');
             }
             return debt_schema_1.default
                 .findOne({
@@ -58,7 +58,7 @@ class OperationsController {
             })
                 .then((debts) => {
                 if (debts.statusAcceptor && debts.statusAcceptor.toString() === userId) {
-                    throw 'Cannot modify debts that need acceptance';
+                    throw new Error('Cannot modify debts that need acceptance');
                 }
                 if (debts.type !== debt_interface_1.DebtsAccountType.SINGLE_USER) {
                     debts.statusAcceptor = debts.users.find(user => user.toString() != userId);
@@ -71,7 +71,7 @@ class OperationsController {
                 return debts.save().then(() => debts);
             })
                 .then((debts) => this.debtsService.getDebtsById(req, res, debts._id))
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
          * DELETE
@@ -82,7 +82,7 @@ class OperationsController {
             req.assert('id', 'Operation Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const operationId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
             const userId = req['user'].id;
@@ -101,7 +101,7 @@ class OperationsController {
                     .findByIdAndRemove(operationId)
                     .then((operation) => {
                     if (!operation) {
-                        throw 'Operation not found';
+                        throw new Error('Operation not found');
                     }
                     return debt;
                 });
@@ -115,7 +115,7 @@ class OperationsController {
                     .then(() => debt);
             })
                 .then((debt) => this.debtsService.getDebtsById(req, res, debt._id))
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
          * POST
@@ -126,7 +126,7 @@ class OperationsController {
             req.assert('id', 'Operation Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const operationId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
             const userId = req['user'].id;
@@ -138,7 +138,7 @@ class OperationsController {
             }, { status: operation_interface_1.OperationStatus.UNCHANGED, statusAcceptor: null })
                 .then((operation) => {
                 if (!operation) {
-                    throw 'Operation not found';
+                    throw new Error('Operation not found');
                 }
                 const moneyReceiver = operation.moneyReceiver;
                 const moneyAmount = operation.moneyAmount;
@@ -159,7 +159,7 @@ class OperationsController {
                 });
             })
                 .then((debts) => this.debtsService.getDebtsById(req, res, debts._id))
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
          * DELETE
@@ -170,7 +170,7 @@ class OperationsController {
             req.assert('id', 'Operation Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const operationId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
             const userId = req['user'].id;
@@ -203,7 +203,7 @@ class OperationsController {
                 return debtObject.save();
             })
                 .then((debt) => this.debtsService.getDebtsById(req, res, debt._id))
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
     }
     calculateDebtsSummary(debt, moneyReceiver, moneyAmount) {

@@ -24,7 +24,6 @@ import * as path from 'path';
 import * as mongoose from 'mongoose';
 import * as passport from 'passport';
 import expressValidator = require('express-validator');
-import * as cors from 'cors';
 import { RoutesModule } from './api/modules/routes.module';
 import { ErrorHandler } from './api/services/error-handler.service';
 
@@ -42,7 +41,8 @@ export class App {
     constructor() {
         this.setupMongoConnection();
         this.expressConfig();
-        this.allowCORS();
+
+        this.setupRequestHandler();
         this.setupRoutes();
         this.setupErrorHandler();
     }
@@ -64,7 +64,7 @@ export class App {
         });
 
         mongoose.connection.on('error', () => {
-            this.errHandler.sendError('MongoDB connection error. Please make sure MongoDB is running.');
+            this.errHandler.captureError('MongoDB connection error. Please make sure MongoDB is running.');
             process.exit();
         });
     }
@@ -106,13 +106,8 @@ export class App {
         this.app.use(express.static('public', { maxAge: 31557600000 }));
     }
 
-    private allowCORS(): void {
-        const corsOptions = {
-            origin: 'http://127.0.0.1:59074',
-            optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
-        };
-
-        this.app.use(cors(corsOptions));
+    private setupRequestHandler(): void {
+        this.app.use(this.errHandler.getRequestHandler());
     }
 
     private setupRoutes(): void {
@@ -123,7 +118,8 @@ export class App {
     }
 
     private setupErrorHandler(): void {
-        this.app.use(this.errHandler.getHandler());
+        this.app.use(this.errHandler.getErrorHandler());
+        this.app.use(this.errHandler.finalErrorHandler);
     }
 
 }

@@ -28,20 +28,20 @@ class DebtsController {
             req.assert('countryCode', 'Country code length must be 2').isLength({ min: 2, max: 2 });
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const userId = req['swagger'] ? req['swagger'].params.userId.value : req.body.userId;
             const countryCode = req['swagger'] ? req['swagger'].params.countryCode.value : req.body.countryCode;
             const creatorId = req['user'].id;
             if (userId == creatorId) {
-                return this.errorHandler.errorHandler(req, res, 'You cannot create Debts with yourself');
+                return this.errorHandler.responseError(req, res, 'You cannot create Debts with yourself');
             }
             return user_schema_1.default
                 .findById(userId)
                 .exec()
                 .then((user) => {
                 if (!user) {
-                    throw 'User is not found';
+                    throw new Error('User is not found');
                 }
                 return debt_schema_1.default
                     .findOne({ 'users': { '$all': [userId, creatorId] } })
@@ -49,13 +49,13 @@ class DebtsController {
             })
                 .then((debts) => {
                 if (debts) {
-                    throw 'Such debts object is already created';
+                    throw new Error('Such debts object is already created');
                 }
                 const newDebts = new debt_dto_1.DebtDto(creatorId, userId, debt_interface_1.DebtsAccountType.MULTIPLE_USERS, countryCode);
                 return debt_schema_1.default.create(newDebts);
             })
                 .then((debt) => this.debtsService.getDebtsById(req, res, debt._id))
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
          * PUT
@@ -70,7 +70,7 @@ class DebtsController {
             req.assert('countryCode', 'Country code length must be 2').isLength({ min: 2, max: 2 });
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const userName = req['swagger'] ? req['swagger'].params.userName.value : req.body.userName;
             const countryCode = req['swagger'] ? req['swagger'].params.countryCode.value : req.body.countryCode;
@@ -84,7 +84,7 @@ class DebtsController {
                 if (debts &&
                     debts.length > 0 &&
                     debts.some(debt => !!debt.users.find(user => user['name'] === userName && user['virtual']))) {
-                    throw 'You already have virtual user with such name';
+                    throw new Error('You already have virtual user with such name');
                 }
                 return user_schema_1.default.create(virtUser);
             })
@@ -98,7 +98,7 @@ class DebtsController {
                     .then(() => debt_schema_1.default.create(new debt_dto_1.DebtDto(creatorId, user._id, debt_interface_1.DebtsAccountType.SINGLE_USER, countryCode)));
             })
                 .then(debt => this.debtsService.getDebtsById(req, res, debt._id))
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
         * DELETE
@@ -109,7 +109,7 @@ class DebtsController {
             req.assert('id', 'Debts Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const debtsId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
             const userId = req['user'].id;
@@ -118,7 +118,7 @@ class DebtsController {
                 .populate({ path: 'users', select: 'name picture' })
                 .then((debt) => {
                 if (!debt) {
-                    throw 'Debts not found';
+                    throw new Error('Debts not found');
                 }
                 if (debt.type === debt_interface_1.DebtsAccountType.SINGLE_USER) {
                     return this.debtsService.deleteSingleDebt(req, res, debt, userId);
@@ -127,7 +127,7 @@ class DebtsController {
                     return this.debtsService.deleteMultipleDebts(req, res, debt, userId);
                 }
             })
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
          * POST
@@ -138,7 +138,7 @@ class DebtsController {
             req.assert('id', 'Debts Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const debtsId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
             const userId = req['user'].id;
@@ -146,11 +146,11 @@ class DebtsController {
                 .findOneAndUpdate({ _id: debtsId, status: debt_interface_1.DebtsStatus.CREATION_AWAITING, statusAcceptor: userId }, { status: debt_interface_1.DebtsStatus.UNCHANGED, statusAcceptor: null })
                 .then((debt) => {
                 if (!debt) {
-                    throw 'Debts not found';
+                    throw new Error('Debts not found');
                 }
                 return this.debtsService.getAllUserDebts(req, res);
             })
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
          * DELETE
@@ -161,7 +161,7 @@ class DebtsController {
             req.assert('id', 'Debts Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const debtsId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
             const userId = req['user'].id;
@@ -169,25 +169,34 @@ class DebtsController {
                 .findOneAndRemove({ _id: debtsId, status: debt_interface_1.DebtsStatus.CREATION_AWAITING, users: { $in: [userId] } })
                 .then((debt) => {
                 if (!debt) {
-                    throw 'Debts not found';
+                    throw new Error('Debts not found');
                 }
                 return this.debtsService.getAllUserDebts(req, res);
             })
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
          * GET
          * /debts
          */
         this.getAllUserDebts = (req, res) => {
-            return this.debtsService.getAllUserDebts(req, res);
+            return this.debtsService
+                .getAllUserDebts(req, res)
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
         * GET
         * /debts/:id
         */
         this.getDebtsById = (req, res) => {
-            return this.debtsService.getDebtsById(req, res);
+            req.assert('id', 'Debts Id is not valid').isMongoId();
+            const errors = req.validationErrors();
+            if (errors) {
+                return this.errorHandler.responseError(req, res, errors);
+            }
+            return this.debtsService
+                .getDebtsById(req, res)
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
         * POST /debts/single/:id/i_love_lsd
@@ -197,7 +206,7 @@ class DebtsController {
             req.assert('id', 'Debts Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const debtsId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
             const userId = req['user'].id;
@@ -214,7 +223,7 @@ class DebtsController {
             })
                 .then((debt) => {
                 if (!debt) {
-                    throw 'Debt is not found';
+                    throw new Error('Debt is not found');
                 }
                 if (!debt.moneyOperations ||
                     !debt.moneyOperations.length ||
@@ -229,7 +238,7 @@ class DebtsController {
                 return debt.save();
             })
                 .then(() => this.debtsService.getDebtsById(req, res, debtsId))
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
         * PUT /debts/single/:id/connect_user
@@ -242,40 +251,40 @@ class DebtsController {
             req.assert('userId', 'User Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const debtsId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
             const anotherUserId = req['swagger'] ? req['swagger'].params.userId.value : req.body.userId;
             const userId = req['user'].id;
             if (userId.toString() === anotherUserId.toString()) {
-                return this.errorHandler.errorHandler(req, res, 'You can\'t connect yourself');
+                return this.errorHandler.responseError(req, res, 'You can\'t connect yourself');
             }
             return debt_schema_1.default
                 .find({ users: { $all: [userId, anotherUserId] } })
                 .lean()
                 .then((debts) => {
                 if (debts && debts['length'] > 0) {
-                    throw 'You already have Debt with this user';
+                    throw new Error('You already have Debt with this user');
                 }
                 return debt_schema_1.default
                     .findOne({ _id: debtsId, type: debt_interface_1.DebtsAccountType.SINGLE_USER, users: { $in: [userId] } });
             })
                 .then((debt) => {
                 if (!debt) {
-                    throw 'Debt is not found';
+                    throw new Error('Debt is not found');
                 }
                 if (debt.status === debt_interface_1.DebtsStatus.CONNECT_USER) {
-                    throw 'Some user is already waiting for connection to this Debt';
+                    throw new Error('Some user is already waiting for connection to this Debt');
                 }
                 if (debt.status === debt_interface_1.DebtsStatus.USER_DELETED) {
-                    throw 'You can\'t connect user to this Debt until you resolve user deletion';
+                    throw new Error('You can\'t connect user to this Debt until you resolve user deletion');
                 }
                 debt.status = debt_interface_1.DebtsStatus.CONNECT_USER;
                 debt.statusAcceptor = anotherUserId;
                 return debt.save();
             })
                 .then(() => this.debtsService.getDebtsById(req, res, debtsId))
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
         * POST /debts/single/:id/connect_user
@@ -286,7 +295,7 @@ class DebtsController {
             req.assert('id', 'Debts Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const debtsId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
             const userId = req['user'].id;
@@ -320,7 +329,7 @@ class DebtsController {
                 promises.push(user_schema_1.default.findByIdAndRemove(virtualUserId)
                     .then((user) => {
                     if (!user) {
-                        throw 'Virtual user is not found';
+                        throw new Error('Virtual user is not found');
                     }
                     const imageName = user.picture.match(constants_1.IMAGES_FOLDER_FILE_PATTERN);
                     fs.unlinkSync('public' + imageName);
@@ -331,7 +340,7 @@ class DebtsController {
                 return debt.save().then(() => Promise.all(promises));
             })
                 .then(() => this.debtsService.getDebtsById(req, res, debtsId))
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
         * DELETE /debts/single/:id/connect_user
@@ -342,7 +351,7 @@ class DebtsController {
             req.assert('id', 'Debts Id is not valid').isMongoId();
             const errors = req.validationErrors();
             if (errors) {
-                return this.errorHandler.errorHandler(req, res, errors);
+                return this.errorHandler.responseError(req, res, errors);
             }
             const debtsId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
             const userId = req['user'].id;
@@ -358,11 +367,11 @@ class DebtsController {
             }, { status: debt_interface_1.DebtsStatus.UNCHANGED, statusAcceptor: null })
                 .then((debt) => {
                 if (!debt) {
-                    throw 'Debt is not found';
+                    throw new Error('Debt is not found');
                 }
                 return this.debtsService.getAllUserDebts(req, res);
             })
-                .catch(err => this.errorHandler.errorHandler(req, res, err));
+                .catch(err => this.errorHandler.responseError(req, res, err));
         };
     }
 }

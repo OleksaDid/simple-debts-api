@@ -23,7 +23,6 @@ const path = require("path");
 const mongoose = require("mongoose");
 const passport = require("passport");
 const expressValidator = require("express-validator");
-const cors = require("cors");
 const routes_module_1 = require("./api/modules/routes.module");
 const error_handler_service_1 = require("./api/services/error-handler.service");
 class App {
@@ -34,7 +33,7 @@ class App {
         this.app = express();
         this.setupMongoConnection();
         this.expressConfig();
-        this.allowCORS();
+        this.setupRequestHandler();
         this.setupRoutes();
         this.setupErrorHandler();
     }
@@ -48,7 +47,7 @@ class App {
             useMongoClient: true
         });
         mongoose.connection.on('error', () => {
-            this.errHandler.sendError('MongoDB connection error. Please make sure MongoDB is running.');
+            this.errHandler.captureError('MongoDB connection error. Please make sure MongoDB is running.');
             process.exit();
         });
     }
@@ -81,12 +80,8 @@ class App {
         });
         this.app.use(express.static('public', { maxAge: 31557600000 }));
     }
-    allowCORS() {
-        const corsOptions = {
-            origin: 'http://127.0.0.1:59074',
-            optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
-        };
-        this.app.use(cors(corsOptions));
+    setupRequestHandler() {
+        this.app.use(this.errHandler.getRequestHandler());
     }
     setupRoutes() {
         const v1 = this.routesModule.getV1Routes(express.Router());
@@ -94,7 +89,8 @@ class App {
         this.app.use('/', v1); // Set the default version to latest.
     }
     setupErrorHandler() {
-        this.app.use(this.errHandler.getHandler());
+        this.app.use(this.errHandler.getErrorHandler());
+        this.app.use(this.errHandler.finalErrorHandler);
     }
 }
 exports.App = App;

@@ -50,7 +50,7 @@ describe('PUT /signup/local', () => {
         return Promise.all(promises).then(responses => {
             responses.forEach(response => {
                 expect(response.statusCode).toBe(400);
-                expect(response.body).toHaveProperty('error', 'Email is wrong');
+                expect(response.body).toHaveProperty('error', 'User with this email already exists');
             });
         });
     });

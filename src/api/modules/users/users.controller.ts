@@ -24,7 +24,7 @@ export class UsersController {
         req.assert('name', 'User name is empty').notEmpty();
         const errors = req.validationErrors();
         if (errors) {
-            return this.errorHandler.errorHandler(req, res, errors);
+            return this.errorHandler.responseError(req, res, errors);
         }
 
         const name = req['swagger'] ? req['swagger'].params.name.value : req.query.name;
@@ -55,7 +55,7 @@ export class UsersController {
 
                 return res.status(200).json(sendUsers);
             })
-            .catch(err => this.errorHandler.errorHandler(req, res, err));
+            .catch(err => this.errorHandler.responseError(req, res, err));
     };
 
 
@@ -71,7 +71,7 @@ export class UsersController {
         req.assert('name', 'Name field should not be empty').notEmpty();
         const errors = req.validationErrors();
         if (errors) {
-            return this.errorHandler.errorHandler(req, res, errors);
+            return this.errorHandler.responseError(req, res, errors);
         }
 
         const name = req['swagger'] ? req['swagger'].params.name.value : req.body.name;
@@ -87,13 +87,13 @@ export class UsersController {
         return User.findByIdAndUpdate(userId, userInfo)
             .then((updatedUser: UserInterface) => {
                 if(!updatedUser) {
-                    return this.errorHandler.errorHandler(req, res, 'User not found');
+                    throw new Error('User not found');
                 }
 
                 const user = new SendUserDto(updatedUser.id, userInfo.name, userInfo.picture || updatedUser.picture);
 
                 return res.status(200).json(user);
             })
-            .catch(err => this.errorHandler.errorHandler(req, res, err));
+            .catch(err => this.errorHandler.responseError(req, res, err));
     };
 }

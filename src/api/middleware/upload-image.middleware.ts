@@ -34,7 +34,7 @@ const uploadImage = (req, res, next) => {
 
     upload(req, res, err => {
         if(err) {
-            return errorHandler.errorHandler(req, res, err);
+            return errorHandler.responseError(req, res, err);
         }
 
         next();
