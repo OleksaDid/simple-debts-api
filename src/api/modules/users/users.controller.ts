@@ -7,11 +7,13 @@ import { DebtInterface } from '../debts/debt.interface';
 import Debts from '../debts/debt.schema';
 import { ErrorHandler } from '../../services/error-handler.service';
 import { getImagesPath } from '../../services/get-images-path.service';
+import {UsersService} from "./users.service";
 
 
 export class UsersController {
 
     private errorHandler = new ErrorHandler();
+    private usersService = new UsersService();
 
 
 
@@ -30,31 +32,8 @@ export class UsersController {
         const name = req['swagger'] ? req['swagger'].params.name.value : req.query.name;
         const userId = req['user'].id;
 
-        let usedUserIds: Id[];
-
-        Debts
-            .find({'users': {'$all': [userId]}})
-            .populate({ path: 'users', select: 'name picture'})
-            .exec()
-            .then((debts: DebtInterface[]) => {
-                usedUserIds = debts
-                    .map(debt => debt.users.find(user => user['id'].toString() != userId)['id']);
-
-                return User
-                    .find({
-                        'name': new RegExp(name, 'i'),
-                        virtual: false
-                    })
-                    .limit(15)
-                    .exec();
-            })
-            .then((users: UserInterface[]) => {
-                const sendUsers = users
-                    .filter(user => user.id != userId && !usedUserIds.find(id => user.id == id))
-                    .map(user => new SendUserDto(user.id, user.name, user.picture));
-
-                return res.status(200).json(sendUsers);
-            })
+        this.usersService.getUsersByName(name, userId)
+            .then(users => res.status(200).json(users))
             .catch(err => this.errorHandler.responseError(req, res, err));
     };
 
@@ -84,16 +63,9 @@ export class UsersController {
         );
 
 
-        return User.findByIdAndUpdate(userId, userInfo)
-            .then((updatedUser: UserInterface) => {
-                if(!updatedUser) {
-                    throw new Error('User not found');
-                }
-
-                const user = new SendUserDto(updatedUser.id, userInfo.name, userInfo.picture || updatedUser.picture);
-
-                return res.status(200).json(user);
-            })
+        this.usersService
+            .updateUserData(userId, userInfo)
+            .then(users => res.status(200).json(users))
             .catch(err => this.errorHandler.responseError(req, res, err));
     };
 }
