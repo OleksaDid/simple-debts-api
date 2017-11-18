@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const operation_interface_1 = require("./operation.interface");
 const debt_interface_1 = require("../debts/debt.interface");
+const validation_object_1 = require("../../common/validation-object");
 class OperationDto {
     constructor(debtsId, moneyAmount, moneyReceiver, description, statusAcceptor, debtsType) {
         this.debtsId = debtsId;
@@ -14,4 +15,11 @@ class OperationDto {
     }
 }
 exports.OperationDto = OperationDto;
+class OperationIdValidationObject extends validation_object_1.ValidationObject {
+    constructor(errors, userId, operationId) {
+        super(errors, userId);
+        this.operationId = operationId;
+    }
+}
+exports.OperationIdValidationObject = OperationIdValidationObject;
 //# sourceMappingURL=operation.dto.js.map

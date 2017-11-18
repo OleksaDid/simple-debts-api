@@ -264,7 +264,7 @@ export class DebtsController {
         const debtsId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
         const userId = req['user'].id;
 
-        return new DebtsIdValidationObject(errors, debtsId, userId);
+        return new DebtsIdValidationObject(errors, userId, debtsId);
     };
     
 }
