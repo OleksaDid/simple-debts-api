@@ -4,6 +4,8 @@ import { DebtInterface } from '../debts/debt.interface';
 import User from './user.schema';
 import { UserInterface } from './user.interface';
 import { SendUserDto, UpdateUserDataDto } from './user.dto';
+import { IMAGES_FOLDER_FILE_PATTERN } from '../../common/constants';
+import * as fs from 'fs';
 
 
 export class UsersService {
@@ -45,4 +47,18 @@ export class UsersService {
                 return new SendUserDto(updatedUser.id, userInfo.name, userInfo.picture || updatedUser.picture);
             });
     };
+
+    deleteUser = (userId: Id): Promise<void> => {
+        return User
+            .findByIdAndRemove(userId)
+            .then((user: UserInterface) => {
+                if(!user) {
+                    throw new Error('Virtual user is not found');
+                }
+
+                const imageName = user.picture.match(IMAGES_FOLDER_FILE_PATTERN);
+
+                fs.unlinkSync('public' + imageName);
+            });
+    }
 }

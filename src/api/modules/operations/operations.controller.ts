@@ -86,7 +86,8 @@ export class OperationsController {
 
                 return debts.save().then(() => debts);
             })
-            .then((debts: DebtInterface) => this.debtsService.getDebtsById(req, res, debts._id))
+            .then((debts: DebtInterface) => this.debtsService.getDebtsById(userId, debts._id))
+            .then(debt => res.status(200).json(debt))
             .catch(err => this.errorHandler.responseError(req, res, err));
 
     };
@@ -139,7 +140,8 @@ export class OperationsController {
                     .save()
                     .then(() => debt);
             })
-            .then((debt: DebtInterface) => this.debtsService.getDebtsById(req, res, debt._id))
+            .then((debt: DebtInterface) => this.debtsService.getDebtsById(userId, debt._id))
+            .then(debt => res.status(200).json(debt))
             .catch(err => this.errorHandler.responseError(req, res, err));
     };
 
@@ -192,7 +194,8 @@ export class OperationsController {
                             .then(() => debts);
                     });
             })
-            .then((debts: DebtInterface) => this.debtsService.getDebtsById(req, res, debts._id))
+            .then((debts: DebtInterface) => this.debtsService.getDebtsById(userId, debts._id))
+            .then(debt => res.status(200).json(debt))
             .catch(err => this.errorHandler.responseError(req, res, err));
     };
 
@@ -249,7 +252,8 @@ export class OperationsController {
 
                 return debtObject.save();
             })
-            .then((debt: DebtInterface) => this.debtsService.getDebtsById(req, res, debt._id))
+            .then((debt: DebtInterface) => this.debtsService.getDebtsById(userId, debt._id))
+            .then(debt => res.status(200).json(debt))
             .catch(err => this.errorHandler.responseError(req, res, err));
     };
 

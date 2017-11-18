@@ -70,7 +70,8 @@ class OperationsController {
                 debts.moneyOperations.push(operationId);
                 return debts.save().then(() => debts);
             })
-                .then((debts) => this.debtsService.getDebtsById(req, res, debts._id))
+                .then((debts) => this.debtsService.getDebtsById(userId, debts._id))
+                .then(debt => res.status(200).json(debt))
                 .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
@@ -114,7 +115,8 @@ class OperationsController {
                     .save()
                     .then(() => debt);
             })
-                .then((debt) => this.debtsService.getDebtsById(req, res, debt._id))
+                .then((debt) => this.debtsService.getDebtsById(userId, debt._id))
+                .then(debt => res.status(200).json(debt))
                 .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
@@ -158,7 +160,8 @@ class OperationsController {
                         .then(() => debts);
                 });
             })
-                .then((debts) => this.debtsService.getDebtsById(req, res, debts._id))
+                .then((debts) => this.debtsService.getDebtsById(userId, debts._id))
+                .then(debt => res.status(200).json(debt))
                 .catch(err => this.errorHandler.responseError(req, res, err));
         };
         /*
@@ -202,7 +205,8 @@ class OperationsController {
                 }
                 return debtObject.save();
             })
-                .then((debt) => this.debtsService.getDebtsById(req, res, debt._id))
+                .then((debt) => this.debtsService.getDebtsById(userId, debt._id))
+                .then(debt => res.status(200).json(debt))
                 .catch(err => this.errorHandler.responseError(req, res, err));
         };
     }

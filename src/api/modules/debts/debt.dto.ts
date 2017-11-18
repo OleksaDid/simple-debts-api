@@ -64,3 +64,16 @@ class DebtsListSummary  {
         this.toTake = toTake;
     }
 }
+
+export class DebtsIdValidationObject {
+    errors: any;
+    debtsId: Id;
+    userId: Id;
+
+
+    constructor(errors: any, debtsId: Id, userId: Id) {
+        this.errors = errors;
+        this.debtsId = debtsId;
+        this.userId = userId;
+    }
+}

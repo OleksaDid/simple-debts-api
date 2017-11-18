@@ -64,9 +64,13 @@ export class AuthController {
         )(req, res, next);
     };
 
-    checkLoginStatus = (req: Request, res: Response ): void => {
-        res.status(200).send('Success');
-    };
+
+    /**
+     * GET /login_status
+     * @param {e.Request} req
+     * @param {Response} res
+     */
+    checkLoginStatus = (req: Request, res: Response ): Response => res.status(200).send('Success');
 
 
 

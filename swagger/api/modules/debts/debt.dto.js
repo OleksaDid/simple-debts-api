@@ -41,4 +41,12 @@ class DebtsListSummary {
         this.toTake = toTake;
     }
 }
+class DebtsIdValidationObject {
+    constructor(errors, debtsId, userId) {
+        this.errors = errors;
+        this.debtsId = debtsId;
+        this.userId = userId;
+    }
+}
+exports.DebtsIdValidationObject = DebtsIdValidationObject;
 //# sourceMappingURL=debt.dto.js.map

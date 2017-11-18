@@ -38,9 +38,12 @@ class AuthController {
             const errorMsg = 'Please, check your request params!';
             passport.authenticate('local-login', (err, user) => this.standartStrategyHandler(req, res, err, user, errorMsg))(req, res, next);
         };
-        this.checkLoginStatus = (req, res) => {
-            res.status(200).send('Success');
-        };
+        /**
+         * GET /login_status
+         * @param {e.Request} req
+         * @param {Response} res
+         */
+        this.checkLoginStatus = (req, res) => res.status(200).send('Success');
         this.setupPassportStrategies();
     }
     standartStrategyHandler(req, res, err, user, errorMessage) {
