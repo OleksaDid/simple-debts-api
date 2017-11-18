@@ -120,7 +120,7 @@ paths:
     delete:
       tags:
         - debts
-      description: Delete yourself from Debt entity by Id
+      description: Delete yourself from multiple users Debt entity, or completely delete single user Debt entity by Id
       operationId: deleteMultipleDebts
       parameters:
         - in: path
@@ -150,7 +150,7 @@ paths:
     x-swagger-router-controller: debtsController
     post:
       tags:
-        - debts
+        - debts/multiple
       description: Accepts Debt creation request
       operationId: acceptCreation
       parameters:
@@ -179,7 +179,7 @@ paths:
         - jwt: []
     delete:
       tags:
-        - debts
+        - debts/multiple
       description: Declines Debt creation request
       operationId: declineCreation
       parameters:
@@ -210,7 +210,7 @@ paths:
     x-swagger-router-controller: debtsController
     put:
       tags:
-        - debts
+        - debts/single
       description: Create new Debt entity for single user
       operationId: createSingleDebt
       parameters:
@@ -250,42 +250,11 @@ paths:
             $ref: "#/definitions/ErrorResponse"
       security:
         - jwt: []
-  /debts/single/{id}:
-    x-swagger-router-controller: debtsController
-    delete:
-      tags:
-        - debts
-      description: Deletes single Debt entity
-      operationId: deleteSingleDebt
-      parameters:
-        - in: path
-          required: true
-          name: id
-          description: Id of Debt entity
-          type: string
-          format: id
-      responses:
-        "200":
-          description: Success
-          schema:
-            type: array
-            items:
-              $ref: "#/definitions/Debt"
-        "400":
-          description: Error
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-      security:
-        - jwt: []
   /debts/single/{id}/i_love_lsd:
     x-swagger-router-controller: debtsController
     post:
       tags:
-        - debts
+        - debts/single
       description: Accepts the fact that another user has been deleted from Debt entity
       operationId: acceptUserDeletedStatus
       parameters:
@@ -314,7 +283,7 @@ paths:
     x-swagger-router-controller: debtsController
     put:
       tags:
-        - debts
+        - debts/single
       description: Invite another user to join your single_user debt
       operationId: connectUserToSingleDebt
       parameters:
@@ -352,7 +321,7 @@ paths:
         - jwt: []
     post:
       tags:
-        - debts
+        - debts/single
       description: Accept invitation to connect to single_user debt
       operationId: acceptUserConnection
       parameters:
@@ -379,7 +348,7 @@ paths:
         - jwt: []
     delete:
       tags:
-        - debts
+        - debts/single
       description: Accept invitation to connect to single_user debt
       operationId: declineUserConnection
       parameters:
@@ -775,7 +744,7 @@ definitions:
         description: Used to show currency
       status:
         type: string
-        format: CREATION_AWAITING | UNCHANGED | CHANGE_AWAITING | USER_DELETED
+        format: CREATION_AWAITING | UNCHANGED | CHANGE_AWAITING | USER_DELETED | CONNECT_USER
       statusAcceptor:
         type: string
         format: id | null

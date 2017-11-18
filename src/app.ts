@@ -24,29 +24,16 @@ import * as path from 'path';
 import * as mongoose from 'mongoose';
 import * as passport from 'passport';
 import expressValidator = require('express-validator');
-import * as cors from 'cors';
-import errorHandler = require('errorhandler');
-import { rollbar } from './api/helpers/rollbar';
-import { ErrorHandler } from './api/helpers/error-handler';
+import { RoutesModule } from './api/modules/routes.module';
+import { ErrorHandler } from './api/services/error-handler.service';
 
-/**
- * Controllers (route handlers).
- */
-import { AuthController } from './api/controllers/auth';
-import { UsersController } from './api/controllers/users';
-import { DebtsController } from './api/controllers/debts';
-import { OperationsController } from './api/controllers/moneyOperation';
 
 
 
 export class App {
     private MongoStore = mongo(session);
     private errHandler = new ErrorHandler();
-
-    private authController = new AuthController();
-    private usersController = new UsersController();
-    private debtsController = new DebtsController();
-    private operationsController = new OperationsController();
+    private routesModule = new RoutesModule();
 
     private app = express();
 
@@ -54,7 +41,8 @@ export class App {
     constructor() {
         this.setupMongoConnection();
         this.expressConfig();
-        this.allowCORS();
+
+        this.setupRequestHandler();
         this.setupRoutes();
         this.setupErrorHandler();
     }
@@ -71,10 +59,12 @@ export class App {
         const mongoServer = process.env.ENVIRONMENT === 'LOCAL' ? process.env.MONGODB_URI : process.env.MONGOLAB_URI;
 
         mongoose.Promise = global.Promise;
-        mongoose.connect(mongoServer);
+        mongoose.connect(mongoServer, {
+            useMongoClient: true
+        });
 
         mongoose.connection.on('error', () => {
-            this.errHandler.sendError('MongoDB connection error. Please make sure MongoDB is running.');
+            this.errHandler.captureError('MongoDB connection error. Please make sure MongoDB is running.');
             process.exit();
         });
     }
@@ -116,70 +106,20 @@ export class App {
         this.app.use(express.static('public', { maxAge: 31557600000 }));
     }
 
-    private allowCORS(): void {
-        const corsOptions = {
-            origin: 'http://127.0.0.1:59074',
-            optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
-        };
-
-        this.app.use(cors(corsOptions));
+    private setupRequestHandler(): void {
+        this.app.use(this.errHandler.getRequestHandler());
     }
 
     private setupRoutes(): void {
-        const v1 = this.getV1Routes(express.Router());
+        const v1 = this.routesModule.getV1Routes(express.Router());
 
         this.app.use('/v1', v1);
         this.app.use('/', v1); // Set the default version to latest.
     }
 
-    private getV1Routes(v1) {
-
-        // DEBTS
-        v1.get('/debts', this.authController.checkJWTAccess, this.debtsController.getAllUserDebts);
-        v1.put('/debts', this.authController.checkJWTAccess, this.debtsController.createNewDebt);
-
-        v1.get('/debts/:id', this.authController.checkJWTAccess, this.debtsController.getDebtsById);
-        v1.delete('/debts/:id', this.authController.checkJWTAccess, this.debtsController.deleteMultipleDebts);
-
-        v1.post('/debts/:id/creation', this.authController.checkJWTAccess, this.debtsController.acceptCreation);
-        v1.delete('/debts/:id/creation', this.authController.checkJWTAccess, this.debtsController.declineCreation);
-
-
-        v1.put('/debts/single', this.authController.checkJWTAccess, this.debtsController.createSingleDebt);
-        v1.delete('/debts/single/:id', this.authController.checkJWTAccess, this.debtsController.deleteSingleDebt);
-
-        v1.put('/debts/single/:id/connect_user', this.authController.checkJWTAccess, this.debtsController.connectUserToSingleDebt);
-        v1.post('/debts/single/:id/connect_user', this.authController.checkJWTAccess, this.debtsController.acceptUserConnection);
-        v1.delete('/debts/single/:id/connect_user', this.authController.checkJWTAccess, this.debtsController.declineUserConnection);
-
-        v1.post('/debts/single/:id/i_love_lsd', this.authController.checkJWTAccess, this.debtsController.acceptUserDeletedStatus);
-
-        // MONEY OPERATIONS
-        v1.put('/operation', this.authController.checkJWTAccess, this.operationsController.createOperation);
-
-        v1.delete('/operation/:id', this.authController.checkJWTAccess, this.operationsController.deleteOperation);
-
-        v1.post('/operation/:id/creation', this.authController.checkJWTAccess, this.operationsController.acceptOperation);
-        v1.delete('/operation/:id/creation', this.authController.checkJWTAccess, this.operationsController.declineOperation);
-
-        // USERS
-        v1.get('/users', this.authController.checkJWTAccess, this.usersController.getUsersArrayByName);
-        v1.patch('/users', this.authController.checkJWTAccess, this.usersController.uploadImage, this.usersController.updateUserData);
-
-        // AUTH
-        v1.put('/signup/local', this.authController.localSignUp);
-
-        v1.post('/login/local', this.authController.localLogin);
-        v1.get('/login/facebook', this.authController.facebookLogin);
-
-        v1.get('/login_status', this.authController.checkJWTAccess, this.authController.checkLoginStatus);
-
-        return v1;
-    }
-
     private setupErrorHandler(): void {
-        const handler = process.env.ENVIRONMENT === 'LOCAL' ?  errorHandler() : rollbar.errorHandler();
-        this.app.use(handler);
+        this.app.use(this.errHandler.getErrorHandler());
+        this.app.use(this.errHandler.finalErrorHandler);
     }
 
 }

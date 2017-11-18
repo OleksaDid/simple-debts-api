@@ -1,7 +1,7 @@
 import * as mongoose from "mongoose";
-import MoneyOperation from "../src/api/models/MoneyOperation";
-import Debts from "../src/api/models/Debts";
 import {App} from "../src/app";
+import Debts from "../src/api/modules/debts/debt.schema";
+import Operation from "../src/api/modules/operations/operation.schema";
 
 const request = require('supertest');
 const app = new App().application;
@@ -63,7 +63,7 @@ beforeAll((done) => {
             user = responses[1].body.user;
 
             return request(app)
-                .put('/debts')
+                .put('/debts/multiple')
                 .send({userId: anotherUser.id, countryCode: 'UA'})
                 .set('Authorization', 'Bearer ' + token);
         })
@@ -71,7 +71,7 @@ beforeAll((done) => {
             debt = resp.body;
 
             return request(app)
-                .post('/debts/' + resp.body.id + '/creation')
+                .post('/debts/multiple/' + resp.body.id + '/creation')
                 .set('Authorization', 'Bearer ' + anotherUserToken);
         })
         .then(resp => {
@@ -215,7 +215,7 @@ describe('PUT /operation', () => {
             .set('Authorization', 'Bearer ' + token)
             .expect(200)
             .then(() => {
-                MoneyOperation.find({}).then(resp => {
+                Operation.find({}).then(resp => {
                     expect(resp).toBeTruthy();
                     expect(Array.isArray(resp)).toBeTruthy();
                     expect(resp.length).toBe(1);
@@ -485,7 +485,7 @@ describe('POST /operation/:id/creation', () => {
     });
 
     it('should change operation\'s status to \'UNCHANGED\'', () => {
-        return MoneyOperation.findById(operation.id).then((resp: any) => {
+        return Operation.findById(operation.id).then((resp: any) => {
             expect(resp.status).toBe('UNCHANGED');
             expect(resp.statusAcceptor).toBeNull();
         });
@@ -606,7 +606,7 @@ describe('DELETE /operation/:id/creation', () => {
     });
 
     it('should remove operation from db', () => {
-        return MoneyOperation
+        return Operation
             .findById(newOperation.id)
             .then(resp => {
                 expect(resp).toBe(null);
@@ -630,7 +630,7 @@ describe('DELETE /operation/:id/creation', () => {
 
                 expect(resp.body.moneyOperations.find(operation => operation.id === newOperation.id)).not.toBeTruthy();
 
-                return MoneyOperation
+                return Operation
                     .findById(newOperation.id);
             })
             .then(resp => expect(resp).toBe(null));
@@ -715,7 +715,7 @@ describe('DELETE /operation/:id', () => {
     });
 
     it('should remove operation from db', () => {
-        return MoneyOperation
+        return Operation
             .findById(operationSingle.id)
             .then(resp => {
                 expect(resp).toBe(null);

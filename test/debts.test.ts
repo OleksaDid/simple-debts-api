@@ -1,8 +1,10 @@
-import {default as Debts, DebtsListClass, DebtsModelClass} from "../src/api/models/Debts";
 import * as mongoose from 'mongoose';
-import User from "../src/api/models/User";
 import * as fs from 'fs';
 import {App} from "../src/app";
+import {DebtDto} from "../src/api/modules/debts/debt.dto";
+import {DebtsAccountType} from "../src/api/modules/debts/debt.interface";
+import User from "../src/api/modules/users/user.schema";
+import Debts from "../src/api/modules/debts/debt.schema";
 
 const request = require('supertest');
 const app = new App().application;
@@ -76,14 +78,14 @@ beforeAll((done) => {
         });
 });
 
-describe('PUT /debts', () => {
+describe('PUT /debts/multiple', () => {
 
     it('should return 401 error if token is invalid', () => {
         const promises = [];
 
-        promises.push(request(app).put('/debts').send({userId: anotherUser.id, countryCode: 'UA'}));
-        promises.push(request(app).put('/debts').send({userId: anotherUser.id, countryCode: 'UA'}).set('Authorization', 'Bearer '));
-        promises.push(request(app).put('/debts').send({userId: anotherUser.id, countryCode: 'UA'}).set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
+        promises.push(request(app).put('/debts/multiple').send({userId: anotherUser.id, countryCode: 'UA'}));
+        promises.push(request(app).put('/debts/multiple').send({userId: anotherUser.id, countryCode: 'UA'}).set('Authorization', 'Bearer '));
+        promises.push(request(app).put('/debts/multiple').send({userId: anotherUser.id, countryCode: 'UA'}).set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
 
         return Promise.all(promises).then(responses => {
             responses.forEach(resp => {
@@ -94,7 +96,7 @@ describe('PUT /debts', () => {
 
     it('should throw an error if you try to create debts w/ yourself', () => {
         return request(app)
-            .put('/debts')
+            .put('/debts/multiple')
             .send({userId: user.id, countryCode: 'UA'})
             .set('Authorization', 'Bearer ' + token)
             .expect(400)
@@ -110,7 +112,7 @@ describe('PUT /debts', () => {
         users.forEach(user => {
             promises.push(
                 request(app)
-                    .put('/debts')
+                    .put('/debts/multiple')
                     .send({userId: user, countryCode: 'UA'})
                     .set('Authorization', 'Bearer ' + token)
             );
@@ -131,7 +133,7 @@ describe('PUT /debts', () => {
         codes.forEach(code => {
             promises.push(
                 request(app)
-                    .put('/debts')
+                    .put('/debts/multiple')
                     .send({userId: anotherUser.id, countryCode: code})
                     .set('Authorization', 'Bearer ' + token)
             );
@@ -147,15 +149,15 @@ describe('PUT /debts', () => {
 
     it('should return new created Debts object', () => {
         return request(app)
-            .put('/debts')
+            .put('/debts/multiple')
             .send({userId: anotherUser.id, countryCode: 'UA'})
             .set('Authorization', 'Bearer ' + token)
             .expect(200)
             .then(debt => {
-                const expectedDebts: any = new DebtsModelClass(
+                const expectedDebts: any = new DebtDto(
                     user.id,
                     anotherUser.id,
-                    'MULTIPLE_USERS',
+                    DebtsAccountType.MULTIPLE_USERS,
                     'UA'
                 );
 
@@ -170,7 +172,7 @@ describe('PUT /debts', () => {
 
     it('should throw an error if debts between these users already exists', () => {
         return request(app)
-            .put('/debts')
+            .put('/debts/multiple')
             .send({userId: anotherUser.id, countryCode: 'UA'})
             .set('Authorization', 'Bearer ' + token)
             .expect(400)
@@ -237,10 +239,10 @@ describe('PUT /debts/single', () => {
             .set('Authorization', 'Bearer ' + token)
             .expect(200)
             .then(debt => {
-                const expectedDebts: any = new DebtsModelClass(
+                const expectedDebts: any = new DebtDto(
                     user.id,
                     anotherUser.id,
-                    'SINGLE_USER',
+                    DebtsAccountType.SINGLE_USER,
                     'UA'
                 );
 
@@ -304,10 +306,10 @@ describe('GET /debts', () => {
             .expect(200)
             .then(resp => {
                 const debts = resp.body;
-                const debtsModel: any = new DebtsModelClass(
+                const debtsModel: any = new DebtDto(
                     user.id,
                     anotherUser.id,
-                    'MULTIPLE_USERS',
+                    DebtsAccountType.MULTIPLE_USERS,
                     'UA'
                 );
 
@@ -393,14 +395,14 @@ describe('GET /debts/:id', () => {
 });
 
 
-describe('DELETE /debts/single/:id', () => {
+describe('DELETE /debts/:id (single)', () => {
 
     it('should return 401 error if token is invalid', () => {
         const promises = [];
 
-        promises.push(request(app).delete('/debts/single/' + singleDebt.id));
-        promises.push(request(app).delete('/debts/single/' + singleDebt.id).set('Authorization', 'Bearer '));
-        promises.push(request(app).delete('/debts/single/' + singleDebt.id).set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
+        promises.push(request(app).delete('/debts/' + singleDebt.id));
+        promises.push(request(app).delete('/debts/' + singleDebt.id).set('Authorization', 'Bearer '));
+        promises.push(request(app).delete('/debts/' + singleDebt.id).set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
 
         return Promise.all(promises).then(responses => {
             responses.forEach(resp => {
@@ -420,7 +422,7 @@ describe('DELETE /debts/single/:id', () => {
         ];
 
         params.forEach(param => {
-           promises.push(request(app).delete('/debts/single/' + param).set('Authorization', 'Bearer ' + token));
+           promises.push(request(app).delete('/debts/' + param).set('Authorization', 'Bearer ' + token));
         });
 
         return Promise.all(promises).then(responses => {
@@ -434,7 +436,7 @@ describe('DELETE /debts/single/:id', () => {
     it('should return 400 if invalid param is set', () => {
 
         return request(app)
-            .delete('/debts/single/' + 'pj2i4hui3gyfu')
+            .delete('/debts/' + 'pj2i4hui3gyfu')
             .set('Authorization', 'Bearer ' + token)
             .expect(400)
             .then(resp => {
@@ -445,15 +447,15 @@ describe('DELETE /debts/single/:id', () => {
     it('should return all debts', () => {
 
         return request(app)
-            .delete('/debts/single/' + singleDebt.id)
+            .delete('/debts/' + singleDebt.id)
             .set('Authorization', 'Bearer ' + token)
             .expect(200)
             .then(resp => {
                 const debts = resp.body;
-                const debtsModel: any = new DebtsModelClass(
+                const debtsModel: any = new DebtDto(
                     user.id,
                     anotherUser.id,
-                    'MULTIPLE_USERS',
+                    DebtsAccountType.MULTIPLE_USERS,
                     'UA'
                 );
 
@@ -503,14 +505,14 @@ describe('DELETE /debts/single/:id', () => {
 });
 
 
-describe('POST /debts/:id/creation', () => {
+describe('POST /debts/multiple/:id/creation', () => {
 
     it('should return 401 error if token is invalid', () => {
         const promises = [];
 
-        promises.push(request(app).post('/debts/' + multipleDebt.id + '/creation'));
-        promises.push(request(app).post('/debts/' + multipleDebt.id + '/creation').set('Authorization', 'Bearer '));
-        promises.push(request(app).post('/debts/' + multipleDebt.id + '/creation').set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
+        promises.push(request(app).post('/debts/multiple/' + multipleDebt.id + '/creation'));
+        promises.push(request(app).post('/debts/multiple/' + multipleDebt.id + '/creation').set('Authorization', 'Bearer '));
+        promises.push(request(app).post('/debts/multiple/' + multipleDebt.id + '/creation').set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
 
         return Promise.all(promises).then(responses => {
             responses.forEach(resp => {
@@ -530,7 +532,9 @@ describe('POST /debts/:id/creation', () => {
         ];
 
         params.forEach(param => {
-            promises.push(request(app).post('/debts/' + param + '/creation').set('Authorization', 'Bearer ' + token));
+            promises.push(request(app)
+                .post('/debts/multiple/' + param + '/creation')
+                .set('Authorization', 'Bearer ' + token));
         });
 
         return Promise.all(promises).then(responses => {
@@ -544,7 +548,7 @@ describe('POST /debts/:id/creation', () => {
     it('should return 400 if invalid param is set', () => {
 
         return request(app)
-            .post('/debts/' + 'y34ygv4h3' + '/creation')
+            .post('/debts/multiple/' + 'y34ygv4h3' + '/creation')
             .set('Authorization', 'Bearer ' + token)
             .expect(400)
             .then(resp => {
@@ -555,7 +559,7 @@ describe('POST /debts/:id/creation', () => {
     it('should return an error if not statusAcceptor tries to accept debts', () => {
 
         return request(app)
-            .post('/debts/' + multipleDebt.id + '/creation')
+            .post('/debts/multiple/' + multipleDebt.id + '/creation')
             .set('Authorization', 'Bearer ' + token)
             .expect(400)
             .then(resp => {
@@ -567,7 +571,7 @@ describe('POST /debts/:id/creation', () => {
         expect(multipleDebt.status).toBe('CREATION_AWAITING');
 
         return request(app)
-            .post('/debts/' + multipleDebt.id + '/creation')
+            .post('/debts/multiple/' + multipleDebt.id + '/creation')
             .set('Authorization', 'Bearer ' + anotherUserToken)
             .expect(200)
             .then(resp => {
@@ -593,7 +597,7 @@ describe('POST /debts/:id/creation', () => {
 
     it('should return an error if debts is already accepted/declined', () => {
         return request(app)
-            .post('/debts/' + multipleDebt.id + '/creation')
+            .post('/debts/multiple/' + multipleDebt.id + '/creation')
             .set('Authorization', 'Bearer ' + anotherUserToken)
             .expect(400)
             .then(resp => {
@@ -603,13 +607,13 @@ describe('POST /debts/:id/creation', () => {
 });
 
 
-describe('DELETE /debts/:id/creation', () => {
+describe('DELETE /debts/multiple/:id/creation', () => {
 
     beforeAll((done) => {
         Debts.findByIdAndRemove(multipleDebt.id)
             .then(() => {
                 return request(app)
-                    .put('/debts')
+                    .put('/debts/multiple')
                     .send({userId: anotherUser.id, countryCode: 'UA'})
                     .set('Authorization', 'Bearer ' + token);
             })
@@ -622,9 +626,9 @@ describe('DELETE /debts/:id/creation', () => {
     it('should return 401 error if token is invalid', () => {
         const promises = [];
 
-        promises.push(request(app).delete('/debts/' + multipleDebt.id + '/creation'));
-        promises.push(request(app).delete('/debts/' + multipleDebt.id + '/creation').set('Authorization', 'Bearer '));
-        promises.push(request(app).delete('/debts/' + multipleDebt.id + '/creation').set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
+        promises.push(request(app).delete('/debts/multiple/' + multipleDebt.id + '/creation'));
+        promises.push(request(app).delete('/debts/multiple/' + multipleDebt.id + '/creation').set('Authorization', 'Bearer '));
+        promises.push(request(app).delete('/debts/multiple/' + multipleDebt.id + '/creation').set('Authorization', 'Bearer KJHFxjfhgIY6r756DRTg86F&%rctjyUG&*6f5rC'));
 
         return Promise.all(promises).then(responses => {
             responses.forEach(resp => {
@@ -644,7 +648,7 @@ describe('DELETE /debts/:id/creation', () => {
         ];
 
         params.forEach(param => {
-            promises.push(request(app).delete('/debts/' + param + '/creation').set('Authorization', 'Bearer ' + token));
+            promises.push(request(app).delete('/debts/multiple/' + param + '/creation').set('Authorization', 'Bearer ' + token));
         });
 
         return Promise.all(promises).then(responses => {
@@ -658,7 +662,7 @@ describe('DELETE /debts/:id/creation', () => {
     it('should return 400 if invalid param is set', () => {
 
         return request(app)
-            .delete('/debts/' + 'y34ygv4h3' + '/creation')
+            .delete('/debts/multiple/' + 'y34ygv4h3' + '/creation')
             .set('Authorization', 'Bearer ' + token)
             .expect(400)
             .then(resp => {
@@ -670,7 +674,7 @@ describe('DELETE /debts/:id/creation', () => {
         expect(multipleDebt.status).toBe('CREATION_AWAITING');
 
         return request(app)
-            .delete('/debts/' + multipleDebt.id + '/creation')
+            .delete('/debts/multiple/' + multipleDebt.id + '/creation')
             .set('Authorization', 'Bearer ' + anotherUserToken)
             .expect(200)
             .then(resp => {
@@ -693,7 +697,7 @@ describe('DELETE /debts/:id/creation', () => {
 
     it('should return an error if debts is already accepted/declined', () => {
         return request(app)
-            .delete('/debts/' + multipleDebt.id + '/creation')
+            .delete('/debts/multiple/' + multipleDebt.id + '/creation')
             .set('Authorization', 'Bearer ' + anotherUserToken)
             .expect(400)
             .then(resp => {
@@ -708,13 +712,13 @@ describe('DELETE /debts/:id/creation', () => {
 
     it('can be deleted by user who\'s created Debts', () => {
         return request(app)
-            .put('/debts')
+            .put('/debts/multiple')
             .send({userId: anotherUser.id, countryCode: 'UA'})
             .set('Authorization', 'Bearer ' + token)
             .expect(200)
             .then(resp => multipleDebt = resp.body)
             .then(() => request(app)
-                .delete('/debts/' + multipleDebt.id + '/creation')
+                .delete('/debts/multiple/' + multipleDebt.id + '/creation')
                 .set('Authorization', 'Bearer ' + token)
                 .expect(200))
             .then(resp => {
@@ -745,7 +749,7 @@ describe('DELETE /debts/:id', () => {
 
     beforeAll((done) => {
         request(app)
-            .put('/debts')
+            .put('/debts/multiple')
             .send({userId: anotherUser.id, countryCode: 'UA'})
             .set('Authorization', 'Bearer ' + token)
             .then(resp => {
@@ -900,13 +904,13 @@ describe('POST /debts/single/:id/i_love_lsd', () => {
 
     beforeAll((done) => {
         request(app)
-            .put('/debts')
+            .put('/debts/multiple')
             .send({userId: anotherUser.id, countryCode: 'UA'})
             .set('Authorization', 'Bearer ' + token)
             .then(resp => multipleDebt = resp.body)
             .then(() => {
                 return request(app)
-                    .post('/debts/' + multipleDebt.id + '/creation')
+                    .post('/debts/multiple/' + multipleDebt.id + '/creation')
                     .set('Authorization', 'Bearer ' + anotherUserToken);
             })
             .then(() => {
@@ -1013,13 +1017,13 @@ describe('POST /debts/single/:id/i_love_lsd', () => {
     it('should change Debt status from USER_DELETE to UNCHANGED if all operations have UNCHANGED status', () => {
 
         return request(app)
-            .put('/debts')
+            .put('/debts/multiple')
             .send({userId: anotherUser.id, countryCode: 'UA'})
             .set('Authorization', 'Bearer ' + token)
             .then(resp => multipleDebt = resp.body)
             .then(() => {
                 return request(app)
-                    .post('/debts/' + multipleDebt.id + '/creation')
+                    .post('/debts/multiple/' + multipleDebt.id + '/creation')
                     .set('Authorization', 'Bearer ' + anotherUserToken);
             })
             .then(() => {
@@ -1199,7 +1203,7 @@ describe('PUT /debts/single/:id/connect_user', () => {
 
     it('should send an error if you try to connect user with whom you already have a debt', () => {
         return request(app)
-            .put('/debts')
+            .put('/debts/multiple')
             .send({userId: anotherUser.id, countryCode: 'UA'})
             .set('Authorization', 'Bearer ' + token)
             .expect(200)
@@ -1535,7 +1539,7 @@ describe('DELETE /debts/single/:id/connect_user', () => {
                     .set('Authorization', 'Bearer ' + anotherUserToken)
                     .expect(200);
             })
-            .then(debt => connectUserDebt = debt.body);
+            .then(debt => connectUserDebt = debt.body.debts.find(debt => connectUserDebt.id === debt.id));
     });
 
     it('should change status to UNCHANGED and statusAcceptor to null', () => {
