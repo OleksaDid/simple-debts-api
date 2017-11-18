@@ -18,13 +18,13 @@ export class RoutesModule {
 
         // DEBTS
         router.get('/debts', checkJWTAccess, this.debtsController.getAllUserDebts);
-        router.put('/debts', checkJWTAccess, this.debtsController.createNewDebt);
 
         router.get('/debts/:id', checkJWTAccess, this.debtsController.getDebtsById);
         router.delete('/debts/:id', checkJWTAccess, this.debtsController.deleteDebt);
 
-        router.post('/debts/:id/creation', checkJWTAccess, this.debtsController.acceptCreation);
-        router.delete('/debts/:id/creation', checkJWTAccess, this.debtsController.declineCreation);
+        router.put('/debts/multiple', checkJWTAccess, this.debtsController.createNewDebt);
+        router.post('/debts/multiple/:id/creation', checkJWTAccess, this.debtsController.acceptCreation);
+        router.delete('/debts/multiple/:id/creation', checkJWTAccess, this.debtsController.declineCreation);
 
 
         router.put('/debts/single', checkJWTAccess, this.debtsController.createSingleDebt);

@@ -16,11 +16,11 @@ class RoutesModule {
     getV1Routes(router) {
         // DEBTS
         router.get('/debts', check_jwt_middleware_1.default, this.debtsController.getAllUserDebts);
-        router.put('/debts', check_jwt_middleware_1.default, this.debtsController.createNewDebt);
         router.get('/debts/:id', check_jwt_middleware_1.default, this.debtsController.getDebtsById);
         router.delete('/debts/:id', check_jwt_middleware_1.default, this.debtsController.deleteDebt);
-        router.post('/debts/:id/creation', check_jwt_middleware_1.default, this.debtsController.acceptCreation);
-        router.delete('/debts/:id/creation', check_jwt_middleware_1.default, this.debtsController.declineCreation);
+        router.put('/debts/multiple', check_jwt_middleware_1.default, this.debtsController.createNewDebt);
+        router.post('/debts/multiple/:id/creation', check_jwt_middleware_1.default, this.debtsController.acceptCreation);
+        router.delete('/debts/multiple/:id/creation', check_jwt_middleware_1.default, this.debtsController.declineCreation);
         router.put('/debts/single', check_jwt_middleware_1.default, this.debtsController.createSingleDebt);
         router.put('/debts/single/:id/connect_user', check_jwt_middleware_1.default, this.debtsController.connectUserToSingleDebt);
         router.post('/debts/single/:id/connect_user', check_jwt_middleware_1.default, this.debtsController.acceptUserConnection);

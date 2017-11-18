@@ -63,7 +63,7 @@ beforeAll((done) => {
             user = responses[1].body.user;
 
             return request(app)
-                .put('/debts')
+                .put('/debts/multiple')
                 .send({userId: anotherUser.id, countryCode: 'UA'})
                 .set('Authorization', 'Bearer ' + token);
         })
@@ -71,7 +71,7 @@ beforeAll((done) => {
             debt = resp.body;
 
             return request(app)
-                .post('/debts/' + resp.body.id + '/creation')
+                .post('/debts/multiple/' + resp.body.id + '/creation')
                 .set('Authorization', 'Bearer ' + anotherUserToken);
         })
         .then(resp => {
