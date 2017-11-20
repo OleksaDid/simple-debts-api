@@ -13,16 +13,12 @@ if(!process.env.ENVIRONMENT) {
  */
 import * as express from 'express';
 import * as compression from 'compression';  // compresses requests
-import * as session from 'express-session';
-import * as cookieParser from 'cookie-parser';
 import * as bodyParser from 'body-parser';
 import * as logger from 'morgan';
-import * as lusca from 'lusca';
-import * as mongo from 'connect-mongo';
-import * as flash from 'express-flash';
-import * as path from 'path';
 import * as mongoose from 'mongoose';
 import * as passport from 'passport';
+import * as helmet from 'helmet';
+import * as Ddos from 'ddos';
 import expressValidator = require('express-validator');
 import { RoutesModule } from './api/modules/routes.module';
 import { ErrorHandler } from './api/services/error-handler.service';
@@ -31,9 +27,9 @@ import { ErrorHandler } from './api/services/error-handler.service';
 
 
 export class App {
-    private MongoStore = mongo(session);
     private errHandler = new ErrorHandler();
     private routesModule = new RoutesModule();
+    private ddos = new Ddos;
 
     private app = express();
 
@@ -72,38 +68,33 @@ export class App {
     private expressConfig(): void {
         this.app.set('port', process.env.PORT || 10010);
 
-        this.app.set('views', path.join(__dirname, '../views'));
-        this.app.set('view engine', 'html');
-
         this.app.use(compression());
         this.app.use(logger('dev'));
-        this.app.use(cookieParser());
 
         this.app.use(bodyParser.json());
         this.app.use(bodyParser.urlencoded({ extended: true }));
 
         this.app.use(expressValidator());
 
-        this.app.use(session({
-            resave: true,
-            saveUninitialized: true,
-            secret: process.env.SESSION_SECRET,
-            store: new this.MongoStore({
-                url: process.env.MONGODB_URI || process.env.MONGOLAB_URI,
-                autoReconnect: true
-            })
-        }));
-
         this.app.use(passport.initialize());
 
-        this.app.use(flash());
-        this.app.use(lusca.xframe('SAMEORIGIN'));
-        this.app.use(lusca.xssProtection(true));
-        this.app.use((req: any, res, next) => {
-            res.locals.user = req.user;
-            next();
-        });
         this.app.use(express.static('public', { maxAge: 31557600000 }));
+
+        this.securityConfig();
+    }
+
+    private securityConfig(): void {
+        this.app.use(helmet());
+
+        this.app.use(helmet.contentSecurityPolicy({
+            directives: {
+                defaultSrc: ["'self'"]
+            }
+        }));
+
+        if(process.env.ENVIRONMENT !== 'LOCAL') {
+            this.app.use(this.ddos.express);
+        }
     }
 
     private setupRequestHandler(): void {

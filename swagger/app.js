@@ -12,24 +12,20 @@ if (!process.env.ENVIRONMENT) {
  */
 const express = require("express");
 const compression = require("compression"); // compresses requests
-const session = require("express-session");
-const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const logger = require("morgan");
-const lusca = require("lusca");
-const mongo = require("connect-mongo");
-const flash = require("express-flash");
-const path = require("path");
 const mongoose = require("mongoose");
 const passport = require("passport");
+const helmet = require("helmet");
+const Ddos = require("ddos");
 const expressValidator = require("express-validator");
 const routes_module_1 = require("./api/modules/routes.module");
 const error_handler_service_1 = require("./api/services/error-handler.service");
 class App {
     constructor() {
-        this.MongoStore = mongo(session);
         this.errHandler = new error_handler_service_1.ErrorHandler();
         this.routesModule = new routes_module_1.RoutesModule();
+        this.ddos = new Ddos;
         this.app = express();
         this.setupMongoConnection();
         this.expressConfig();
@@ -53,32 +49,25 @@ class App {
     }
     expressConfig() {
         this.app.set('port', process.env.PORT || 10010);
-        this.app.set('views', path.join(__dirname, '../views'));
-        this.app.set('view engine', 'html');
         this.app.use(compression());
         this.app.use(logger('dev'));
-        this.app.use(cookieParser());
         this.app.use(bodyParser.json());
         this.app.use(bodyParser.urlencoded({ extended: true }));
         this.app.use(expressValidator());
-        this.app.use(session({
-            resave: true,
-            saveUninitialized: true,
-            secret: process.env.SESSION_SECRET,
-            store: new this.MongoStore({
-                url: process.env.MONGODB_URI || process.env.MONGOLAB_URI,
-                autoReconnect: true
-            })
-        }));
         this.app.use(passport.initialize());
-        this.app.use(flash());
-        this.app.use(lusca.xframe('SAMEORIGIN'));
-        this.app.use(lusca.xssProtection(true));
-        this.app.use((req, res, next) => {
-            res.locals.user = req.user;
-            next();
-        });
         this.app.use(express.static('public', { maxAge: 31557600000 }));
+        this.securityConfig();
+    }
+    securityConfig() {
+        this.app.use(helmet());
+        this.app.use(helmet.contentSecurityPolicy({
+            directives: {
+                defaultSrc: ["'self'"]
+            }
+        }));
+        if (process.env.ENVIRONMENT !== 'LOCAL') {
+            this.app.use(this.ddos.express);
+        }
     }
     setupRequestHandler() {
         this.app.use(this.errHandler.getRequestHandler());

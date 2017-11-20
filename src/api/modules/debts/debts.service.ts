@@ -6,7 +6,7 @@ import { CloneRealUserToVirtualDto, CreateVirtualUserDto } from '../users/user.d
 import Debts from './debt.schema';
 import Operation from '../operations/operation.schema';
 import { OperationInterface, OperationStatus } from '../operations/operation.interface';
-import {DebtDto, DebtsListDto} from './debt.dto';
+import { DebtDto, DebtsListDto } from './debt.dto';
 import { UsersService } from '../users/users.service';
 
 
