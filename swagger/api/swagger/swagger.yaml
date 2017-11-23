@@ -47,47 +47,6 @@ paths:
             $ref: "#/definitions/ErrorResponse"
       security:
         - jwt: []
-    put:
-      tags:
-        - debts
-      description: Creates new Debts entity with selected User
-      operationId: createNewDebt
-      parameters:
-        - in: body
-          required: true
-          name: debt
-          description: Creation info
-          schema:
-            type: object
-            required:
-              - userId
-              - countryCode
-            properties:
-              userId:
-                type: string
-                format: id
-                description: Id of User you want to create new Debt with
-              countryCode:
-                type: string
-                format: ISO2
-                description: Used to show currency
-                minLength: 2
-                maxLength: 2
-      responses:
-        "200":
-          description: Success
-          schema:
-            $ref: "#/definitions/Debt"
-        "400":
-          description: Error
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-      security:
-        - jwt: []
   /debts/{id}:
     x-swagger-router-controller: debtsController
     get:
@@ -146,7 +105,50 @@ paths:
             $ref: "#/definitions/ErrorResponse"
       security:
         - jwt: []
-  /debts/{id}/creation:
+  /debts/multiple:
+    x-swagger-router-controller: debtsController
+    put:
+      tags:
+        - debts/multiple
+      description: Creates new Debts entity with selected User
+      operationId: createNewDebt
+      parameters:
+        - in: body
+          required: true
+          name: debt
+          description: Creation info
+          schema:
+            type: object
+            required:
+              - userId
+              - countryCode
+            properties:
+              userId:
+                type: string
+                format: id
+                description: Id of User you want to create new Debt with
+              countryCode:
+                type: string
+                format: ISO2
+                description: Used to show currency
+                minLength: 2
+                maxLength: 2
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/Debt"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      security:
+        - jwt: []
+  /debts/multiple/{id}/creation:
     x-swagger-router-controller: debtsController
     post:
       tags:
@@ -402,7 +404,7 @@ paths:
         - in: header
           name: Authorization
           type: string
-          format: Bearer *fb_token*
+          description: Bearer *FB_TOKEN*
           required: true
       responses:
         "200":
@@ -629,6 +631,28 @@ paths:
           description: Login error
           schema:
             $ref: "#/definitions/ErrorResponse"
+  /refresh_token:
+    x-swagger-router-controller: authController
+    get:
+      tags:
+        - login
+      description: Updates user's access token & refresh token
+      operationId: refreshToken
+      parameters:
+        - in: header
+          name: Authorization
+          type: string
+          description: Bearer *REFRESH_TOKEN*
+          required: true
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: "#/definitions/OnLogin"
+        "400":
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
   /users:
     x-swagger-router-controller: usersController
     get:
@@ -712,6 +736,9 @@ definitions:
             format: url
             description: Url of user's avatar
       token:
+        type: string
+        description: JWT
+      refreshToken:
         type: string
         description: JWT
   User:

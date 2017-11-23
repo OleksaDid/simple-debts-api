@@ -55,6 +55,8 @@ export class RoutesModule {
 
         router.get('/login_status', checkJWTAccess, this.authController.checkLoginStatus);
 
+        router.get('/refresh_token', this.authController.refreshToken);
+
         return router;
     }
 }

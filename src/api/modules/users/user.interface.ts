@@ -9,18 +9,11 @@ export interface UserInterface extends Document {
     virtual: boolean;
 
     facebook: string;
-    tokens: UserToken[];
+
+    refreshTokenId: number;
+    accessTokenId: number;
 
     generateHash: (password: string) => string;
     validPassword: (password: string) => boolean;
     generateIdenticon: (hashSubject: string) => Promise<string>;
-}
-
-export interface UserToken {
-    kind: UserTokenKinds;
-    accessToken: string;
-}
-
-export enum UserTokenKinds {
-    Facebook = 'facebook'
 }

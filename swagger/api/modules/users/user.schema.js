@@ -12,7 +12,8 @@ const userSchema = new custom_mongoose_types_service_1.default({
     password: String,
     virtual: { type: Boolean, default: false },
     facebook: { type: String, index: true, unique: true, sparse: true },
-    tokens: Array
+    refreshTokenId: Number,
+    accessTokenId: Number,
 }, { timestamps: true });
 // generating a hash
 userSchema.methods.generateHash = (password) => bcrypt.hashSync(password, bcrypt.genSaltSync(8));

@@ -7,7 +7,6 @@ const passportJWT = require("passport-jwt");
 const LocalStrategy = require("passport-local");
 const constants_1 = require("../../common/constants");
 const user_schema_1 = require("../users/user.schema");
-const user_interface_1 = require("../users/user.interface");
 const user_dto_1 = require("../users/user.dto");
 const get_images_path_service_1 = require("../../services/get-images-path.service");
 class AuthenticationService {
@@ -16,8 +15,12 @@ class AuthenticationService {
         this.JwtStrategy = passportJWT.Strategy;
         this.JWTStrategyOptions = {
             jwtFromRequest: this.ExtractJwt.fromAuthHeaderAsBearerToken(),
-            secretOrKey: process.env.JWT_SECRET
+            secretOrKey: process.env.JWT_SECRET,
+            ignoreExpiration: true
         };
+        this.RefreshTokenStrategyOptions = Object.assign({}, this.JWTStrategyOptions, {
+            secretOrKey: process.env.REFRESH_JWT_SECRET
+        });
         this.localStrategyOptions = {
             // by default, local strategy uses username and password, we will override with email
             usernameField: 'email',
@@ -36,17 +39,37 @@ class AuthenticationService {
         this.setupDeserializer();
     }
     verifyJWT() {
-        passport.use(new this.JwtStrategy(this.JWTStrategyOptions, (jwt_payload, done) => {
+        passport.use('jwt', new this.JwtStrategy(this.JWTStrategyOptions, (jwt_payload, done) => {
+            console.log(jwt_payload);
+            if (jwt_payload.exp < this.getCurrentDateInSeconds()) {
+                return done(new Error('Access Token Expired'));
+            }
             user_schema_1.default
                 .findById(jwt_payload.id)
-                .exec()
+                .lean()
                 .then((user) => {
-                if (user) {
-                    done(null, new user_dto_1.SendUserDto(user._id, user.name, user.picture));
+                if (!user || user.accessTokenId !== jwt_payload.jwtid) {
+                    throw new Error('Invalid Token');
                 }
-                else {
-                    throw new Error('Invalid JWT Token');
+                done(null, new user_dto_1.SendUserDto(user._id, user.name, user.picture));
+            })
+                .catch(err => done(err));
+        }));
+    }
+    refreshToken() {
+        passport.use('refresh-jwt', new this.JwtStrategy(this.RefreshTokenStrategyOptions, (jwt_payload, done) => {
+            console.log(jwt_payload);
+            if (jwt_payload.exp < this.getCurrentDateInSeconds()) {
+                return done(new Error('Refresh Token Expired'));
+            }
+            user_schema_1.default
+                .findById(jwt_payload.id)
+                .lean()
+                .then((user) => {
+                if (!user || user.refreshTokenId !== jwt_payload.jwtid) {
+                    throw new Error('Invalid Token');
                 }
+                return this.updateTokensAndReturnUser(user, done);
             })
                 .catch(err => done(err));
         }));
@@ -65,11 +88,9 @@ class AuthenticationService {
                 user.name = `${profile.name.givenName} ${profile.name.familyName}`;
                 user.picture = this.generateFbImagePath(profile.id);
                 user.facebook = profile.id;
-                user.tokens = [];
-                user.tokens.push({ kind: user_interface_1.UserTokenKinds.Facebook, accessToken });
                 return user.save();
             })
-                .then((user) => this.returnSendUser(user, done))
+                .then((user) => this.updateTokensAndReturnUser(user, done))
                 .catch(err => done(err));
         }));
     }
@@ -113,7 +134,7 @@ class AuthenticationService {
                     createdUser.name = email.match(constants_1.EMAIL_NAME_PATTERN)[0];
                     return createdUser.save();
                 })
-                    .then(() => this.returnSendUser(createdUser, done))
+                    .then(() => this.updateTokensAndReturnUser(createdUser, done))
                     .catch(err => done(err));
             });
         }));
@@ -133,21 +154,45 @@ class AuthenticationService {
                     throw new Error('Wrong password');
                 }
                 // all is well, return successful user
-                return this.returnSendUser(user, done);
+                return this.updateTokensAndReturnUser(user, done);
             })
                 .catch(err => done(err));
         }));
     }
-    returnSendUser(user, done) {
-        const payload = { id: user.id };
+    updateTokensAndReturnUser(user, done) {
+        const expirationTime = Math.floor(this.getCurrentDateInSeconds()) + constants_1.ACCESS_TOKEN_EXP_SECONDS;
+        const refreshExpirationTime = Math.floor(this.getCurrentDateInSeconds()) + constants_1.REFRESH_TOKEN_EXP_SECONDS;
+        const payload = this.getJWTPayload(user._id, expirationTime);
+        const refreshPayload = this.getJWTPayload(user._id, refreshExpirationTime);
         const token = jwt.sign(payload, process.env.JWT_SECRET);
-        const sendUser = { user: new user_dto_1.SendUserDto(user._id, user.name, user.picture), token };
-        done(null, sendUser);
+        const refreshToken = jwt.sign(refreshPayload, process.env.REFRESH_JWT_SECRET);
+        const sendUser = {
+            user: new user_dto_1.SendUserDto(user._id, user.name, user.picture),
+            token,
+            refreshToken
+        };
+        user_schema_1.default
+            .findByIdAndUpdate(user._id, {
+            accessTokenId: payload.jwtid,
+            refreshTokenId: refreshPayload.jwtid
+        })
+            .then(() => done(null, sendUser));
     }
     setupSerializer() {
         passport.serializeUser((user, done) => {
             done(undefined, user.id);
         });
+    }
+    getJWTPayload(id, exp) {
+        return {
+            id,
+            exp,
+            jwtid: Math.ceil(Math.random() * 10000)
+        };
+    }
+    getCurrentDateInSeconds() {
+        const MS_IN_S = 1000;
+        return Date.now() / MS_IN_S;
     }
     setupDeserializer() {
         passport.deserializeUser((id, done) => {

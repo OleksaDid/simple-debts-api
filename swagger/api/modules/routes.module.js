@@ -39,6 +39,7 @@ class RoutesModule {
         router.post('/login/local', this.authController.localLogin);
         router.get('/login/facebook', this.authController.facebookLogin);
         router.get('/login_status', check_jwt_middleware_1.default, this.authController.checkLoginStatus);
+        router.get('/refresh_token', this.authController.refreshToken);
         return router;
     }
 }

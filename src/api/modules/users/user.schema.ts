@@ -14,7 +14,9 @@ const userSchema = new Schema({
     virtual: {type: Boolean, default: false},
 
     facebook: { type: String, index: true, unique: true, sparse: true },
-    tokens: Array
+
+    refreshTokenId: Number,
+    accessTokenId: Number,
 
 }, { timestamps: true });
 
