@@ -1,26 +1,80 @@
-import { Request, Response } from 'express';
 import { DebtInterface, DebtsAccountType, DebtsStatus } from './debt.interface';
 import { Id } from '../../common/types';
 import { UserInterface } from '../users/user.interface';
 import User from '../users/user.schema';
-import { CloneRealUserToVirtualDto } from '../users/user.dto';
+import { CloneRealUserToVirtualDto, CreateVirtualUserDto } from '../users/user.dto';
 import Debts from './debt.schema';
 import Operation from '../operations/operation.schema';
 import { OperationInterface, OperationStatus } from '../operations/operation.interface';
-import { IMAGES_FOLDER_FILE_PATTERN } from '../../common/constants';
-import * as fs from 'fs';
-import { DebtsListDto } from './debt.dto';
-import { ErrorHandler } from '../../services/error-handler.service';
+import { DebtDto, DebtsListDto } from './debt.dto';
+import { UsersService } from '../users/users.service';
 
 
 
 export class DebtsService {
-    
-    private errorHandler = new ErrorHandler();
-    
-    
 
-    deleteMultipleDebts = (req: Request, res: Response, debt: DebtInterface, userId: Id) => {
+    private usersService = new UsersService();
+
+
+
+    createMultipleDebt = (creatorId: Id, userId: Id, countryCode: string): Promise<DebtInterface> => {
+        return User
+            .findById(userId)
+            .exec()
+            .then((user: UserInterface) => {
+                if(!user) {
+                    throw new Error('User is not found');
+                }
+
+                return Debts
+                    .findOne({'users': {'$all': [userId, creatorId]}})
+                    .exec();
+            })
+            .then((debts: DebtInterface) => {
+                if(debts) {
+                    throw new Error('Such debts object is already created');
+                }
+
+                const newDebts = new DebtDto(creatorId, userId, DebtsAccountType.MULTIPLE_USERS, countryCode);
+
+                return Debts
+                    .create(newDebts)
+                    .then((debt: DebtInterface) => debt);
+            });
+    };
+
+    createSingleDebt = (creatorId: Id, userName: string, countryCode: string, imagesPath: string): Promise<DebtInterface> => {
+        const virtUser = new CreateVirtualUserDto(userName);
+
+        return Debts
+            .find({'users': {'$all': [creatorId]}, 'type': DebtsAccountType.SINGLE_USER})
+            .populate({ path: 'users', select: 'name virtual'})
+            .lean()
+            .then((debts: DebtInterface[]) => {
+                if(
+                    debts &&
+                    debts.length > 0 &&
+                    debts.some(debt => !!debt.users.find(user => user['name'] === userName && user['virtual']))
+                ) {
+                    throw new Error('You already have virtual user with such name');
+                }
+
+                return User.create(virtUser);
+            })
+            .then((user: UserInterface) => {
+
+                const newUser: any = new User();
+
+                return newUser.generateIdenticon(user.id)
+                    .then(image => {
+                        user.picture = imagesPath + image;
+                        return user.save();
+                    })
+                    .then(() => Debts.create(new DebtDto(creatorId, user._id, DebtsAccountType.SINGLE_USER, countryCode)));
+            });
+    };
+    
+    deleteMultipleDebts = (debt: DebtInterface, userId: Id): Promise<void> => {
         const deletedUserInfo = debt.users.find(user => user['_id'].toString() === userId.toString());
 
         let createdVirtualUser: UserInterface;
@@ -62,33 +116,20 @@ export class DebtsService {
                     return operation.save();
                 });
 
-                return Promise.all(promises);
-            })
-            .then(() => this.getAllUserDebts(req, res));
+                return Promise.all(promises)
+                    .then(() => {}); // transform an array of promises into 1 promise
+            });
     };
 
-    deleteSingleDebt = (req: Request, res: Response, debt: DebtInterface, userId: Id) => {
+    deleteSingleDebt = (debt: DebtInterface, userId: Id): Promise<void> => {
         const virtualUserId = debt.users.find(user => user['_id'].toString() != userId);
 
         return debt
             .remove()
-            .then(() => User.findByIdAndRemove(virtualUserId))
-            .then((user: UserInterface) => {
-                if(!user) {
-                    throw new Error('User not found');
-                }
-
-                const imageName = user.picture.match(IMAGES_FOLDER_FILE_PATTERN);
-
-                fs.unlinkSync('public' + imageName);
-
-                return this.getAllUserDebts(req, res);
-            });
+            .then(() => this.usersService.deleteUser(virtualUserId));
     };
 
-    getAllUserDebts = (req: Request, res: Response) => {
-        const userId = req['user'].id;
-
+    getAllUserDebts = (userId: Id): Promise<DebtsListDto> => {
         return Debts
             .find({
                 $or: [
@@ -103,15 +144,12 @@ export class DebtsService {
                 if(debts) {
                     const debtsArray = debts.map(debt => this.formatDebt(debt, userId, false));
 
-                    res.json(new DebtsListDto(debtsArray, userId));
+                    return new DebtsListDto(debtsArray, userId);
                 }
             });
     };
 
-    getDebtsById = (req: Request, res: Response, debts?: Id) => {
-        const debtsId = debts ? debts : (req['swagger'] ? req['swagger'].params.id.value : req.params.id);
-        const userId = req['user'].id;
-
+    getDebtsById = (userId: Id, debtsId: Id) => {
         return Debts
             .findById(debtsId)
             .populate({
@@ -126,10 +164,189 @@ export class DebtsService {
                     throw new Error('Debts with id ' + debtsId + ' is not found');
                 }
 
-                res.json(this.formatDebt(debt, userId, true));
+                return this.formatDebt(debt, userId, true);
+            });
+    };
+    
+    deleteDebt = (userId: Id, debtsId: Id): Promise<void> => {
+        return Debts
+            .findOne({_id: debtsId, users: {$in: [userId]}})
+            .populate({ path: 'users', select: 'name picture'})
+            .then((debt: DebtInterface) => {
+                if(!debt) {
+                    throw new Error('Debts not found');
+                }
+
+                if(debt.type === DebtsAccountType.SINGLE_USER) {
+                    return this.deleteSingleDebt(debt, userId);
+                } else if(debt.type === DebtsAccountType.MULTIPLE_USERS) {
+                    return this.deleteMultipleDebts(debt, userId);
+                }
+            });  
+    };
+    
+    acceptDebtsCreation = (userId: Id, debtsId: Id): Promise<void> => {
+        return Debts
+            .findOneAndUpdate(
+                { _id: debtsId, status: DebtsStatus.CREATION_AWAITING, statusAcceptor: userId },
+                { status: DebtsStatus.UNCHANGED, statusAcceptor: null }
+            )
+            .then((debt: DebtInterface) => {
+                if(!debt) {
+                    throw new Error('Debts not found');
+                }
             });
     };
 
+    declineDebtsCreation = (userId: Id, debtsId: Id): Promise<void> => {
+        return Debts
+            .findOneAndRemove({
+                _id: debtsId,
+                status: DebtsStatus.CREATION_AWAITING,
+                users: {$in: [userId]}
+            })
+            .then((debt: DebtInterface) => {
+                if(!debt) {
+                    throw new Error('Debts not found');
+                }
+            });
+    };
+
+    acceptUserDeletedStatus = (userId: Id, debtsId: Id): Promise<DebtInterface> => {
+        return Debts
+            .findOne({
+                _id: debtsId,
+                type: DebtsAccountType.SINGLE_USER,
+                status: DebtsStatus.USER_DELETED,
+                statusAcceptor: userId
+            })
+            .populate({
+                path: 'moneyOperations',
+                select: 'status'
+            })
+            .then((debt: DebtInterface) => {
+                if(!debt) {
+                    throw new Error('Debt is not found');
+                }
+
+                if(!debt.moneyOperations ||
+                    !debt.moneyOperations.length ||
+                    debt.moneyOperations.every(operation => operation.status === OperationStatus.UNCHANGED)
+                ) {
+                    debt.status = DebtsStatus.UNCHANGED;
+                    debt.statusAcceptor = null;
+                } else {
+                    debt.status = DebtsStatus.CHANGE_AWAITING;
+                    debt.statusAcceptor = userId;
+                }
+
+                return debt.save();
+            });
+    };
+
+    connectUserToSingleDebt = (userId: Id, connectUserId: Id, debtsId: Id): Promise<DebtInterface> => {
+      return Debts
+            .find({users: {$all: [userId, connectUserId]}})
+            .lean()
+            .then((debts: DebtInterface[]) => {
+                if(debts && debts['length'] > 0) {
+                    throw new Error('You already have Debt with this user');
+                }
+
+                return Debts
+                    .findOne({_id: debtsId, type: DebtsAccountType.SINGLE_USER, users: {$in: [userId]}});
+            })
+            .then((debt: DebtInterface) => {
+                if(!debt) {
+                    throw new Error('Debt is not found');
+                }
+
+                if(debt.status === DebtsStatus.CONNECT_USER) {
+                    throw new Error('Some user is already waiting for connection to this Debt');
+                }
+
+                if(debt.status === DebtsStatus.USER_DELETED) {
+                    throw new Error('You can\'t connect user to this Debt until you resolve user deletion');
+                }
+
+                debt.status = DebtsStatus.CONNECT_USER;
+                debt.statusAcceptor = connectUserId;
+
+                return debt.save();
+            });
+    };
+
+    acceptUserConnectionToSingleDebt = (userId: Id, debtsId: Id): Promise<void> => {
+        return Debts
+            .findOne({
+                _id: debtsId,
+                type: DebtsAccountType.SINGLE_USER,
+                status: DebtsStatus.CONNECT_USER,
+                statusAcceptor: userId
+            })
+            .populate('users', 'virtual')
+            .then((debt: DebtInterface) => {
+                const virtualUserId = debt.users.find(user => user['virtual']);
+
+                debt.status = DebtsStatus.UNCHANGED;
+                debt.type = DebtsAccountType.MULTIPLE_USERS;
+                debt.statusAcceptor = null;
+
+                if(debt.moneyReceiver === virtualUserId) {
+                    debt.moneyReceiver = userId;
+                }
+
+                debt.users.push(userId);
+
+                const promises = [];
+
+                debt.moneyOperations.forEach(operation => {
+                    promises.push(
+                        Operation.findById(operation)
+                            .then((op: OperationInterface) => {
+                                if(op.moneyReceiver === virtualUserId) {
+                                    op.moneyReceiver = userId;
+                                }
+
+                                return op.save();
+                            })
+                    );
+                });
+
+                promises.push(
+                    this.usersService.deleteUser(virtualUserId)
+                );
+
+                promises.push(
+                    Debts.findByIdAndUpdate(debtsId, {
+                        $pull: {users: virtualUserId}
+                    })
+                );
+
+                return debt.save().then(() => Promise.all(promises));
+            })
+            .then(() => {});
+    };
+
+    declineUserConnectionToSingleDebt = (userId: Id, debtsId: Id): Promise<void> => {
+        return Debts
+            .findOneAndUpdate(
+                {
+                    _id: debtsId,
+                    type: DebtsAccountType.SINGLE_USER,
+                    status: DebtsStatus.CONNECT_USER,
+                    $or: [
+                        {users: {$in: [userId]}},
+                        {statusAcceptor: userId}
+                    ]
+                },
+                {status: DebtsStatus.UNCHANGED, statusAcceptor: null})
+            .then((debt: DebtInterface) => {
+                if(!debt) {
+                    throw new Error('Debt is not found');
+                }
+            });
+    };
 
 
     

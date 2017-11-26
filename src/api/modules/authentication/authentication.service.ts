@@ -4,11 +4,16 @@ import * as jwt from 'jsonwebtoken';
 import * as passportJWT from 'passport-jwt';
 import * as LocalStrategy from 'passport-local';
 
-import { EMAIL_NAME_PATTERN, EMAIL_PATTERN } from '../../common/constants';
+import {
+    ACCESS_TOKEN_EXP_SECONDS, EMAIL_NAME_PATTERN, EMAIL_PATTERN,
+    REFRESH_TOKEN_EXP_SECONDS
+} from '../../common/constants';
 import User from '../users/user.schema';
-import { UserInterface, UserTokenKinds } from '../users/user.interface';
+import { UserInterface } from '../users/user.interface';
 import { SendUserDto } from '../users/user.dto';
 import { getImagesPath } from '../../services/get-images-path.service';
+import { JwtPayloadInterface } from './jwt-payload.interface';
+import { Id } from '../../common/types';
 
 
 
@@ -18,8 +23,17 @@ export class AuthenticationService {
 
     private JWTStrategyOptions = {
         jwtFromRequest: this.ExtractJwt.fromAuthHeaderAsBearerToken(),
-        secretOrKey: process.env.JWT_SECRET
+        secretOrKey: process.env.JWT_SECRET,
+        ignoreExpiration: true
     };
+    
+    private RefreshTokenStrategyOptions = Object.assign(
+        {}, 
+        this.JWTStrategyOptions, 
+        {
+            secretOrKey: process.env.REFRESH_JWT_SECRET
+        }
+    );
 
     private localStrategyOptions = {
         // by default, local strategy uses username and password, we will override with email
@@ -48,21 +62,54 @@ export class AuthenticationService {
 
 
     verifyJWT(): void {
-        passport.use(new this.JwtStrategy(
+        passport.use('jwt', new this.JwtStrategy(
             this.JWTStrategyOptions,
-            (jwt_payload, done) => {
+            (jwt_payload: JwtPayloadInterface, done) => {
+                console.log(jwt_payload);
+
+                if(jwt_payload.exp < this.getCurrentDateInSeconds()) {
+                    return done(new Error('Access Token Expired'));
+                }
+
                 User
                     .findById(jwt_payload.id)
-                    .exec()
+                    .lean()
                     .then((user: UserInterface) => {
-                        if (user) {
-                            done(null, new SendUserDto(user._id, user.name, user.picture));
-                        } else {
-                            throw new Error('Invalid JWT Token');
+                        if (!user || user.accessTokenId !== jwt_payload.jwtid) {
+                            throw new Error('Invalid Token');
                         }
+
+                        done(null, new SendUserDto(user._id, user.name, user.picture));
                     })
                     .catch(err => done(err));
             }));
+    }
+
+
+    refreshToken(): void {
+        passport.use('refresh-jwt',
+            new this.JwtStrategy(
+                this.RefreshTokenStrategyOptions,
+                (jwt_payload: JwtPayloadInterface, done) => {
+                    console.log(jwt_payload);
+
+                    if(jwt_payload.exp < this.getCurrentDateInSeconds()) {
+                        return done(new Error('Refresh Token Expired'));
+                    }
+
+                    User
+                        .findById(jwt_payload.id)
+                        .lean()
+                        .then((user: UserInterface) => {
+                            if (!user || user.refreshTokenId !== jwt_payload.jwtid) {
+                                throw new Error('Invalid Token');
+                            }
+
+                            return this.updateTokensAndReturnUser(user, done);
+                        })
+                        .catch(err => done(err));
+            })
+        );
     }
 
     // Facebook strategy
@@ -83,13 +130,10 @@ export class AuthenticationService {
                         user.name = `${profile.name.givenName} ${profile.name.familyName}`;
                         user.picture = this.generateFbImagePath(profile.id);
                         user.facebook = profile.id;
-
-                        user.tokens = [];
-                        user.tokens.push({ kind: UserTokenKinds.Facebook, accessToken });
                         
                         return user.save();
                     })
-                    .then((user: UserInterface) => this.returnSendUser(user, done))
+                    .then((user: UserInterface) => this.updateTokensAndReturnUser(user, done))
                     .catch(err => done(err));
             }));
     }
@@ -147,7 +191,7 @@ export class AuthenticationService {
 
                             return createdUser.save();
                         })
-                        .then(() => this.returnSendUser(createdUser, done))
+                        .then(() => this.updateTokensAndReturnUser(createdUser, done))
                         .catch(err => done(err));
 
                 });
@@ -175,26 +219,57 @@ export class AuthenticationService {
                         }
 
                         // all is well, return successful user
-                        return this.returnSendUser(user, done);
+                        return this.updateTokensAndReturnUser(user, done);
                     })
                     .catch(err => done(err));
 
             }));
     }
 
+    
 
+    private updateTokensAndReturnUser(user: UserInterface, done): void {
+        const expirationTime = Math.floor(this.getCurrentDateInSeconds()) + ACCESS_TOKEN_EXP_SECONDS;
+        const refreshExpirationTime = Math.floor(this.getCurrentDateInSeconds()) + REFRESH_TOKEN_EXP_SECONDS;
 
-    private returnSendUser(user: UserInterface, done): void {
-        const payload = {id: user.id};
+        const payload = this.getJWTPayload(user._id, expirationTime);
+        const refreshPayload = this.getJWTPayload(user._id, refreshExpirationTime);
+
         const token = jwt.sign(payload, process.env.JWT_SECRET);
-        const sendUser = {user: new SendUserDto(user._id, user.name, user.picture), token};
-        done(null, sendUser);
+        const refreshToken = jwt.sign(refreshPayload, process.env.REFRESH_JWT_SECRET);
+
+        const sendUser = {
+            user: new SendUserDto(user._id, user.name, user.picture),
+            token,
+            refreshToken
+        };
+
+        User
+            .findByIdAndUpdate(user._id, {
+                accessTokenId: payload.jwtid,
+                refreshTokenId: refreshPayload.jwtid
+            })
+            .then(() => done(null, sendUser));
     }
 
     private setupSerializer(): void {
         passport.serializeUser<any, any>((user, done) => {
             done(undefined, user.id);
         });
+    }
+
+    private getJWTPayload(id: Id, exp: number): JwtPayloadInterface {
+        return {
+            id,
+            exp,
+            jwtid: Math.ceil(Math.random() * 10000)
+        };
+    }
+
+    private getCurrentDateInSeconds(): number {
+        const MS_IN_S = 1000;
+
+        return Date.now() / MS_IN_S;
     }
 
     private setupDeserializer(): void {

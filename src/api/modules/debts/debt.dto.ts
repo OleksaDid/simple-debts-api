@@ -1,6 +1,7 @@
 import { Id } from '../../common/types';
 import { DebtsAccountType, DebtsStatus } from './debt.interface';
 import { OperationInterface } from '../operations/operation.interface';
+import {ValidationObject} from "../../common/validation-object";
 
 
 export class DebtDto {
@@ -62,5 +63,14 @@ class DebtsListSummary  {
     constructor(toGive: number, toTake: number) {
         this.toGive = toGive;
         this.toTake = toTake;
+    }
+}
+
+export class DebtsIdValidationObject extends ValidationObject {
+    debtsId: Id;
+
+    constructor(errors: any, userId: Id, debtsId: Id) {
+        super(errors, userId);
+        this.debtsId = debtsId;
     }
 }

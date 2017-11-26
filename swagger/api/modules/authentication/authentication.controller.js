@@ -18,6 +18,16 @@ class AuthController {
             passport.authenticate('facebook-token', (err, user) => this.standartStrategyHandler(req, res, err, user, errorMsg))(req, res, next);
         };
         /*
+        * GET
+        * /refresh_token
+        * @header Authorization Must contain 'Bearer <REFRESH_TOKEN>'
+        */
+        this.refreshToken = (req, res, next) => {
+            const errorMsg = 'Invalid token';
+            // calling this so as to catch error and respond without 500 and pass all the details to the user.
+            passport.authenticate('refresh-jwt', (err, user) => this.standartStrategyHandler(req, res, err, user, errorMsg))(req, res, next);
+        };
+        /*
         * POST
         * /auth/local/sign-up
         * @param email String User's email
@@ -38,9 +48,12 @@ class AuthController {
             const errorMsg = 'Please, check your request params!';
             passport.authenticate('local-login', (err, user) => this.standartStrategyHandler(req, res, err, user, errorMsg))(req, res, next);
         };
-        this.checkLoginStatus = (req, res) => {
-            res.status(200).send('Success');
-        };
+        /**
+         * GET /login_status
+         * @param {e.Request} req
+         * @param {Response} res
+         */
+        this.checkLoginStatus = (req, res) => res.status(200).send('Success');
         this.setupPassportStrategies();
     }
     standartStrategyHandler(req, res, err, user, errorMessage) {
@@ -65,6 +78,7 @@ class AuthController {
         this.authService.localAuth();
         this.authService.localLogin();
         this.authService.verifyJWT();
+        this.authService.refreshToken();
     }
 }
 exports.AuthController = AuthController;

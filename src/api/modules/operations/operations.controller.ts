@@ -1,19 +1,16 @@
-import * as mongoose from 'mongoose';
 import { Request, Response } from 'express';
-import { Id } from '../../common/types';
-import Debts from '../debts/debt.schema';
-import { DebtInterface, DebtsAccountType, DebtsStatus } from '../debts/debt.interface';
-import { OperationDto } from './operation.dto';
-import Operation from './operation.schema';
-import { OperationInterface, OperationStatus } from './operation.interface';
+import { DebtInterface } from '../debts/debt.interface';
 import { ErrorHandler } from '../../services/error-handler.service';
 import { DebtsService } from '../debts/debts.service';
+import { OperationsService } from './operations.service';
+import { OperationIdValidationObject } from "./operation.dto";
 
 
 
 export class OperationsController {
-    private ObjectId = mongoose.Types.ObjectId;
+
     private debtsService = new DebtsService();
+    private operationsService = new OperationsService();
     private errorHandler = new ErrorHandler();
 
 
@@ -43,50 +40,14 @@ export class OperationsController {
         const description = req['swagger'] ? req['swagger'].params.description.value : req.body.description;
         const userId = req['user'].id;
 
-        let operationId;
-
         if(+moneyAmount <= 0 ) {
             return this.errorHandler.responseError(req, res, 'Money amount is less then or equal 0');
         }
 
-        return Debts
-            .findOne(
-                {
-                    _id: debtsId,
-                    users: {'$all': [userId, moneyReceiver]},
-                    $nor: [{status: DebtsStatus.CONNECT_USER}, {status: DebtsStatus.CREATION_AWAITING}]
-                },
-                'users type'
-            )
-            .lean()
-            .then((debt: DebtInterface) => {
-                const statusAcceptor = debt.users.find(user => user.toString() != userId);
-                const newOperation = new OperationDto(debtsId, moneyAmount, moneyReceiver, description, statusAcceptor, debt.type);
-
-                return Operation.create(newOperation);
-            })
-            .then((operation: OperationInterface) => {
-                operationId = operation._id;
-                return Debts.findById(debtsId);
-            })
-            .then((debts: DebtInterface) => {
-
-                if(debts.statusAcceptor && debts.statusAcceptor.toString() === userId) {
-                    throw new Error('Cannot modify debts that need acceptance');
-                }
-
-                if(debts.type !== DebtsAccountType.SINGLE_USER) {
-                    debts.statusAcceptor = debts.users.find(user => user.toString() != userId);
-                    debts.status = DebtsStatus.CHANGE_AWAITING;
-                } else {
-                    debts = this.calculateDebtsSummary(debts, moneyReceiver, moneyAmount);
-                }
-
-                debts.moneyOperations.push(operationId);
-
-                return debts.save().then(() => debts);
-            })
-            .then((debts: DebtInterface) => this.debtsService.getDebtsById(req, res, debts._id))
+        this.operationsService
+            .createOperation(userId, debtsId, moneyAmount, moneyReceiver, description)
+            .then((debts: DebtInterface) => this.debtsService.getDebtsById(userId, debts._id))
+            .then(debt => res.status(200).json(debt))
             .catch(err => this.errorHandler.responseError(req, res, err));
 
     };
@@ -97,49 +58,16 @@ export class OperationsController {
      * @param operationId Id Id of the Operation that need to be deleted
      */
     deleteOperation = (req: Request, res: Response) => {
-        req.assert('id', 'Operation Id is not valid').isMongoId();
-        const errors = req.validationErrors();
+        const {errors, operationId, userId} = this.validateOperationId(req);
+
         if (errors) {
             return this.errorHandler.responseError(req, res, errors);
         }
 
-        const operationId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
-        const userId = req['user'].id;
-
-        return Debts.findOneAndUpdate(
-            {
-                users: {'$in': [userId]},
-                moneyOperations: {'$in': [operationId]},
-                type: DebtsAccountType.SINGLE_USER,
-                $nor: [{status: DebtsStatus.CONNECT_USER}, {status: DebtsStatus.CREATION_AWAITING}]
-            },
-            {$pull: {moneyOperations: operationId}}
-            )
-            .populate({
-                path: 'moneyOperations',
-                select: 'moneyAmount moneyReceiver',
-            })
-            .then((debt: DebtInterface) => {
-                return Operation
-                    .findByIdAndRemove(operationId)
-                    .then((operation: OperationInterface) => {
-                        if(!operation) {
-                            throw new Error('Operation not found');
-                        }
-
-                        return debt;
-                    });
-            })
-            .then((debt: DebtInterface) => {
-                const operation = debt.moneyOperations.find(op => op.id.toString() === operationId);
-                const moneyAmount = operation.moneyAmount;
-                const moneyReceiver = debt.users.find(user => user.toString() !== operation.moneyReceiver);
-
-                return this.calculateDebtsSummary(debt, moneyReceiver, moneyAmount)
-                    .save()
-                    .then(() => debt);
-            })
-            .then((debt: DebtInterface) => this.debtsService.getDebtsById(req, res, debt._id))
+        this.operationsService
+            .deleteOperation(userId, operationId)
+            .then((debt: DebtInterface) => this.debtsService.getDebtsById(userId, debt._id))
+            .then(debt => res.status(200).json(debt))
             .catch(err => this.errorHandler.responseError(req, res, err));
     };
 
@@ -149,50 +77,16 @@ export class OperationsController {
      * @param operationId Id Id of the Operation that need to be accepted
      */
     acceptOperation = (req: Request, res: Response) => {
-        req.assert('id', 'Operation Id is not valid').isMongoId();
-        const errors = req.validationErrors();
+        const {errors, operationId, userId} = this.validateOperationId(req);
+
         if (errors) {
             return this.errorHandler.responseError(req, res, errors);
         }
-        const operationId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
-        const userId = req['user'].id;
 
-        return Operation
-            .findOneAndUpdate(
-                {
-                    _id: operationId,
-                    statusAcceptor: new this.ObjectId(userId),
-                    status: OperationStatus.CREATION_AWAITING
-                },
-                { status: OperationStatus.UNCHANGED, statusAcceptor: null }
-            )
-            .then((operation: OperationInterface) => {
-                if(!operation) {
-                    throw new Error('Operation not found');
-                }
-
-                const moneyReceiver = operation.moneyReceiver;
-                const moneyAmount = operation.moneyAmount;
-
-                return Debts
-                    .findById(operation.debtsId)
-                    .populate({
-                        path: 'moneyOperations',
-                        select: 'status',
-                    })
-                    .then((debts: DebtInterface) => {
-
-                        if(debts.moneyOperations.every(operation => operation.status === OperationStatus.UNCHANGED)) {
-                            debts.status = DebtsStatus.UNCHANGED;
-                            debts.statusAcceptor = null;
-                        }
-
-                        return this.calculateDebtsSummary(debts, moneyReceiver, moneyAmount)
-                            .save()
-                            .then(() => debts);
-                    });
-            })
-            .then((debts: DebtInterface) => this.debtsService.getDebtsById(req, res, debts._id))
+        this.operationsService
+            .acceptOperation(userId, operationId)
+            .then((debts: DebtInterface) => this.debtsService.getDebtsById(userId, debts._id))
+            .then(debt => res.status(200).json(debt))
             .catch(err => this.errorHandler.responseError(req, res, err));
     };
 
@@ -202,79 +96,27 @@ export class OperationsController {
      * @param operationId Id Id of the Operation that need to be declined
      */
     declineOperation = (req: Request, res: Response) => {
-        req.assert('id', 'Operation Id is not valid').isMongoId();
-        const errors = req.validationErrors();
+        const {errors, operationId, userId} = this.validateOperationId(req);
+
         if (errors) {
             return this.errorHandler.responseError(req, res, errors);
         }
 
-        const operationId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
-        const userId = req['user'].id;
-
-        let debtObject: DebtInterface;
-
-        return Operation
-            .findOne({_id: operationId, status: OperationStatus.CREATION_AWAITING})
-            .then((operation: OperationInterface) => {
-                if(!operation) {
-                    throw 'Operation is not found';
-                }
-
-                return Debts
-                    .findOneAndUpdate(
-                        {_id: operation.debtsId, users: {$in: [userId]}},
-                        {'$pull': {'moneyOperations': operationId}}
-                    )
-                    .populate({ path: 'moneyOperations', select: 'status'});
-            })
-            .then((debt: DebtInterface) => {
-                if(!debt) {
-                    throw 'You don\'t have permissions to delete this operation';
-                }
-
-                debtObject = debt;
-
-                return Operation
-                    .findByIdAndRemove(operationId);
-            })
-            .then(() => {
-                if(
-                    debtObject.moneyOperations
-                        .filter(operation => operation.id.toString() !== operationId)
-                        .every(operation => operation.status === OperationStatus.UNCHANGED)
-                ) {
-                    debtObject.status = DebtsStatus.UNCHANGED;
-                    debtObject.statusAcceptor = null;
-                }
-
-                return debtObject.save();
-            })
-            .then((debt: DebtInterface) => this.debtsService.getDebtsById(req, res, debt._id))
+        this.operationsService
+            .declineOperation(userId, operationId)
+            .then((debt: DebtInterface) => this.debtsService.getDebtsById(userId, debt._id))
+            .then(debt => res.status(200).json(debt))
             .catch(err => this.errorHandler.responseError(req, res, err));
     };
 
 
 
-    private calculateDebtsSummary(debt: DebtInterface, moneyReceiver: Id, moneyAmount: number) {
-        debt.summary +=  debt.moneyReceiver !== null
-            ? debt.moneyReceiver.toString() == moneyReceiver.toString()
-                ? +moneyAmount
-                : -moneyAmount
-            : +moneyAmount;
+    private validateOperationId = (req: Request) => {
+        req.assert('id', 'Operation Id is not valid').isMongoId();
+        const errors = req.validationErrors();
+        const operationId = req['swagger'] ? req['swagger'].params.id.value : req.params.id;
+        const userId = req['user'].id;
 
-        if(debt.summary === 0) {
-            debt.moneyReceiver = null;
-        }
-
-        if(debt.summary > 0 && debt.moneyReceiver === null) {
-            debt.moneyReceiver = moneyReceiver;
-        }
-
-        if(debt.summary < 0) {
-            debt.moneyReceiver = moneyReceiver;
-            debt.summary += (debt.summary * -2);
-        }
-
-        return debt;
-    }
+        return new OperationIdValidationObject(errors, userId, operationId);
+    };
 }

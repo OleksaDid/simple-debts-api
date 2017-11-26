@@ -35,6 +35,21 @@ export class AuthController {
     };
 
     /*
+    * GET
+    * /refresh_token
+    * @header Authorization Must contain 'Bearer <REFRESH_TOKEN>'
+    */
+    refreshToken = (req: Request, res: Response, next: NextFunction): void => {
+        const errorMsg = 'Invalid token';
+
+        // calling this so as to catch error and respond without 500 and pass all the details to the user.
+        passport.authenticate(
+            'refresh-jwt',
+            (err, user) => this.standartStrategyHandler(req, res, err, user, errorMsg)
+        )(req, res, next);
+    };
+
+    /*
     * POST
     * /auth/local/sign-up
     * @param email String User's email
@@ -64,9 +79,13 @@ export class AuthController {
         )(req, res, next);
     };
 
-    checkLoginStatus = (req: Request, res: Response ): void => {
-        res.status(200).send('Success');
-    };
+
+    /**
+     * GET /login_status
+     * @param {e.Request} req
+     * @param {Response} res
+     */
+    checkLoginStatus = (req: Request, res: Response ): Response => res.status(200).send('Success');
 
 
 
@@ -91,5 +110,6 @@ export class AuthController {
         this.authService.localAuth();
         this.authService.localLogin();
         this.authService.verifyJWT();
+        this.authService.refreshToken();
     }
 }

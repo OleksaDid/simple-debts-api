@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const debt_interface_1 = require("./debt.interface");
+const validation_object_1 = require("../../common/validation-object");
 class DebtDto {
     constructor(creatorId, secondUserId, type, countryCode) {
         this.users = [creatorId, secondUserId];
@@ -41,4 +42,11 @@ class DebtsListSummary {
         this.toTake = toTake;
     }
 }
+class DebtsIdValidationObject extends validation_object_1.ValidationObject {
+    constructor(errors, userId, debtsId) {
+        super(errors, userId);
+        this.debtsId = debtsId;
+    }
+}
+exports.DebtsIdValidationObject = DebtsIdValidationObject;
 //# sourceMappingURL=debt.dto.js.map

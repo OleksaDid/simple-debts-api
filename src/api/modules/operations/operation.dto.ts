@@ -1,6 +1,7 @@
 import { OperationStatus } from './operation.interface';
 import { Id } from '../../common/types';
 import { DebtsAccountType } from '../debts/debt.interface';
+import {ValidationObject} from "../../common/validation-object";
 
 export class OperationDto {
     debtsId: Id;
@@ -27,5 +28,15 @@ export class OperationDto {
         this.description = description;
         this.status = debtsType === DebtsAccountType.SINGLE_USER ? OperationStatus.UNCHANGED : OperationStatus.CREATION_AWAITING;
         this.statusAcceptor = debtsType === DebtsAccountType.SINGLE_USER ? null : statusAcceptor;
+    }
+}
+
+
+export class OperationIdValidationObject extends ValidationObject {
+    operationId: Id;
+
+    constructor(errors: any, userId: Id, operationId: Id) {
+        super(errors, userId);
+        this.operationId = operationId;
     }
 }

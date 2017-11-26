@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const debt_schema_1 = require("../debts/debt.schema");
 const user_schema_1 = require("./user.schema");
 const user_dto_1 = require("./user.dto");
+const constants_1 = require("../../common/constants");
+const fs = require("fs");
 class UsersService {
     constructor() {
         this.getUsersByName = (name, userId) => {
@@ -36,6 +38,17 @@ class UsersService {
                     throw new Error('User not found');
                 }
                 return new user_dto_1.SendUserDto(updatedUser.id, userInfo.name, userInfo.picture || updatedUser.picture);
+            });
+        };
+        this.deleteUser = (userId) => {
+            return user_schema_1.default
+                .findByIdAndRemove(userId)
+                .then((user) => {
+                if (!user) {
+                    throw new Error('Virtual user is not found');
+                }
+                const imageName = user.picture.match(constants_1.IMAGES_FOLDER_FILE_PATTERN);
+                fs.unlinkSync('public' + imageName);
             });
         };
     }

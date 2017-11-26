@@ -2,7 +2,7 @@ import * as mongoose from 'mongoose';
 import * as fs from 'fs';
 import {App} from "../src/app";
 import {DebtDto} from "../src/api/modules/debts/debt.dto";
-import {DebtsAccountType} from "../src/api/modules/debts/debt.interface";
+import {DebtsAccountType, DebtsStatus} from "../src/api/modules/debts/debt.interface";
 import User from "../src/api/modules/users/user.schema";
 import Debts from "../src/api/modules/debts/debt.schema";
 
@@ -1538,19 +1538,23 @@ describe('DELETE /debts/single/:id/connect_user', () => {
                     .delete('/debts/single/' + connectUserDebt.id + '/connect_user')
                     .set('Authorization', 'Bearer ' + anotherUserToken)
                     .expect(200);
-            })
-            .then(debt => connectUserDebt = debt.body.debts.find(debt => connectUserDebt.id === debt.id));
+            });
     });
 
     it('should change status to UNCHANGED and statusAcceptor to null', () => {
-        expect(connectUserDebt).toHaveProperty('status', 'UNCHANGED');
-        expect(connectUserDebt).toHaveProperty('statusAcceptor', null);
+        return Debts
+            .findById(connectUserDebt.id)
+            .lean()
+            .then(debt => {
+                expect(debt).toHaveProperty('status', DebtsStatus.UNCHANGED);
+                expect(debt).toHaveProperty('statusAcceptor', null);
+            });
     });
 });
 
 
 
-function checkIsObjectMatchesDebtsModel(object, debtsModel: DebtsModelClass, checkKeys = true): void {
+function checkIsObjectMatchesDebtsModel(object, debtsModel: DebtDto, checkKeys = true): void {
     Object.keys(debtsModel).forEach(key => {
         if(checkKeys) {
             expect(object).toHaveProperty(key, debtsModel[key]);
