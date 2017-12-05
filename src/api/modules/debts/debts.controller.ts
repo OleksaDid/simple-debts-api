@@ -115,7 +115,7 @@ export class DebtsController {
 
         this.debtsService
             .acceptDebtsCreation(userId, debtsId)
-            .then(() => this.debtsService.getAllUserDebts(userId))
+            .then(() => this.debtsService.getDebtsById(userId, debtsId))
             .then(debtList => res.status(200).json(debtList))
             .catch(err => this.errorHandler.responseError(req, res, err));
     };

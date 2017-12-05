@@ -166,9 +166,7 @@ paths:
         "200":
           description: Success
           schema:
-            type: array
-            items:
-              $ref: "#/definitions/Debt"
+            $ref: "#/definitions/Debt"
         "400":
           description: Error
           schema:

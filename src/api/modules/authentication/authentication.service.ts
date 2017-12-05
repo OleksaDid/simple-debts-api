@@ -65,7 +65,6 @@ export class AuthenticationService {
         passport.use('jwt', new this.JwtStrategy(
             this.JWTStrategyOptions,
             (jwt_payload: JwtPayloadInterface, done) => {
-                console.log(jwt_payload);
 
                 if(jwt_payload.exp < this.getCurrentDateInSeconds()) {
                     return done(new Error('Access Token Expired'));
@@ -91,7 +90,6 @@ export class AuthenticationService {
             new this.JwtStrategy(
                 this.RefreshTokenStrategyOptions,
                 (jwt_payload: JwtPayloadInterface, done) => {
-                    console.log(jwt_payload);
 
                     if(jwt_payload.exp < this.getCurrentDateInSeconds()) {
                         return done(new Error('Refresh Token Expired'));
