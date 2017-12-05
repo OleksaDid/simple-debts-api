@@ -83,10 +83,10 @@ class DebtsService {
             })
                 .then((operations) => {
                 const promises = operations.map(operation => {
-                    if (operation.moneyReceiver.toString() === userId.toString()) {
+                    if (operation.moneyReceiver && operation.moneyReceiver.toString() === userId.toString()) {
                         operation.moneyReceiver = createdVirtualUser._id;
                     }
-                    if (operation.statusAcceptor.toString() === userId.toString()) {
+                    if (operation.statusAcceptor && operation.statusAcceptor.toString() === userId.toString()) {
                         operation.statusAcceptor = null;
                         operation.status = operation_interface_1.OperationStatus.UNCHANGED;
                     }
