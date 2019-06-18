@@ -14,5 +14,6 @@ SwaggerExpress.create(config, function (err, swaggerExpress) {
     swaggerExpress.register(app);
     const port = process.env.PORT || 10010;
     app.listen(port);
+    console.log(`App started on port ${port}`);
 });
 //# sourceMappingURL=server.js.map

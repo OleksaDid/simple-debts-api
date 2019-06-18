@@ -1,13 +1,8 @@
 import { Request, Response } from 'express';
-import User from './user.schema';
-import { UserInterface } from './user.interface';
-import { Id } from '../../common/types';
-import { SendUserDto, UpdateUserDataDto } from './user.dto';
-import { DebtInterface } from '../debts/debt.interface';
-import Debts from '../debts/debt.schema';
+import { UpdateUserDataDto } from './user.dto';
 import { ErrorHandler } from '../../services/error-handler.service';
 import { getImagesPath } from '../../services/get-images-path.service';
-import {UsersService} from "./users.service";
+import { UsersService } from './users.service';
 
 
 export class UsersController {

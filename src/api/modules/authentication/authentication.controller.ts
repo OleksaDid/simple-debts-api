@@ -2,7 +2,7 @@ import * as passport from 'passport';
 import { NextFunction, Request, Response } from 'express';
 import { AuthenticationService } from './authentication.service';
 import { SendUserDto } from '../users/user.dto';
-import { ErrorHandler } from "../../services/error-handler.service";
+import { ErrorHandler } from '../../services/error-handler.service';
 
 
 export class AuthController {

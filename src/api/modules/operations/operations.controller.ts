@@ -3,7 +3,7 @@ import { DebtInterface } from '../debts/debt.interface';
 import { ErrorHandler } from '../../services/error-handler.service';
 import { DebtsService } from '../debts/debts.service';
 import { OperationsService } from './operations.service';
-import { OperationIdValidationObject } from "./operation.dto";
+import { OperationIdValidationObject } from './operation.dto';
 
 
 

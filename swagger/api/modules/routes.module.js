@@ -35,11 +35,11 @@ class RoutesModule {
         router.get('/users', check_jwt_middleware_1.default, this.usersController.getUsersArrayByName);
         router.patch('/users', check_jwt_middleware_1.default, upload_image_middleware_1.default, this.usersController.updateUserData);
         // AUTH
-        router.put('/signup/local', this.authController.localSignUp);
         router.post('/login/local', this.authController.localLogin);
         router.get('/login/facebook', this.authController.facebookLogin);
-        router.get('/login_status', check_jwt_middleware_1.default, this.authController.checkLoginStatus);
-        router.get('/refresh_token', this.authController.refreshToken);
+        router.get('/login/status', check_jwt_middleware_1.default, this.authController.checkLoginStatus);
+        router.get('/login/refresh_token', this.authController.refreshToken);
+        router.put('/signup/local', this.authController.localSignUp);
         return router;
     }
 }

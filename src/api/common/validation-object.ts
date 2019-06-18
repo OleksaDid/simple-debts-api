@@ -1,4 +1,4 @@
-import { Id } from "./types";
+import { Id } from './types';
 
 export class ValidationObject {
     errors: any;

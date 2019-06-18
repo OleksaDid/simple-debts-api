@@ -567,7 +567,7 @@ describe('POST /debts/multiple/:id/creation', () => {
             });
     });
 
-    it('should return all debts & change status of debtId from \'CREATION_AWAITING\' to \'UNCHANGED\' & change statusAcceptor to null', () => {
+    it('should return accepted debt & change status of debtId from \'CREATION_AWAITING\' to \'UNCHANGED\' & change statusAcceptor to null', () => {
         expect(multipleDebt.status).toBe('CREATION_AWAITING');
 
         return request(app)
@@ -575,23 +575,13 @@ describe('POST /debts/multiple/:id/creation', () => {
             .set('Authorization', 'Bearer ' + anotherUserToken)
             .expect(200)
             .then(resp => {
-                const debts = resp.body;
+                const debt = resp.body;
                 const unchangedDebt = JSON.parse(JSON.stringify(multipleDebt));
                 unchangedDebt.status = 'UNCHANGED';
                 unchangedDebt.statusAcceptor = null;
                 unchangedDebt.user = user;
                 delete unchangedDebt.moneyOperations;
-
-                expect(debts).toHaveProperty('debts');
-                expect(Array.isArray(debts.debts)).toBeTruthy();
-                debts.debts.forEach(debt => checkIsObjectMatchesDebtsModel(debt, unchangedDebt, false));
-
-                expect(debts).toHaveProperty('summary');
-                expect(debts.summary).toHaveProperty('toGive', 0);
-                expect(debts.summary).toHaveProperty('toTake', 0);
-
-                expect(debts.debts.find(debt => debt.id === unchangedDebt.id)).toBeTruthy();
-                checkIsObjectMatchesDebtsModel(debts.debts.find(debt => debt.id === unchangedDebt.id), unchangedDebt);
+                checkIsObjectMatchesDebtsModel(debt, unchangedDebt);
             });
     });
 

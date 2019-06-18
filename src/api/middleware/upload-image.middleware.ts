@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as multer from 'multer';
-import {ErrorHandler} from "../services/error-handler.service";
+import { ErrorHandler } from '../services/error-handler.service';
 
 const errorHandler = new ErrorHandler();
 

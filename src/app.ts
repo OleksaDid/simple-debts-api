@@ -54,7 +54,7 @@ export class App {
     private setupMongoConnection(): void {
         const mongoServer = process.env.ENVIRONMENT === 'LOCAL' ? process.env.MONGODB_URI : process.env.MONGOLAB_URI;
 
-        mongoose.Promise = global.Promise;
+        (mongoose as any).Promise = global.Promise;
         mongoose.connect(mongoServer, {
             useMongoClient: true
         });

@@ -1,7 +1,7 @@
 import { OperationStatus } from './operation.interface';
 import { Id } from '../../common/types';
 import { DebtsAccountType } from '../debts/debt.interface';
-import {ValidationObject} from "../../common/validation-object";
+import { ValidationObject } from '../../common/validation-object';
 
 export class OperationDto {
     debtsId: Id;

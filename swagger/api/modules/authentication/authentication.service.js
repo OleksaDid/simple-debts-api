@@ -40,7 +40,6 @@ class AuthenticationService {
     }
     verifyJWT() {
         passport.use('jwt', new this.JwtStrategy(this.JWTStrategyOptions, (jwt_payload, done) => {
-            console.log(jwt_payload);
             if (jwt_payload.exp < this.getCurrentDateInSeconds()) {
                 return done(new Error('Access Token Expired'));
             }
@@ -58,7 +57,6 @@ class AuthenticationService {
     }
     refreshToken() {
         passport.use('refresh-jwt', new this.JwtStrategy(this.RefreshTokenStrategyOptions, (jwt_payload, done) => {
-            console.log(jwt_payload);
             if (jwt_payload.exp < this.getCurrentDateInSeconds()) {
                 return done(new Error('Refresh Token Expired'));
             }
