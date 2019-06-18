@@ -1,18 +1,9 @@
 import { Response, Request } from 'express';
-import * as fs from 'fs';
-import User from '../users/user.schema';
-import Debts from './debt.schema';
-import { UserInterface } from '../users/user.interface';
-import { DebtInterface, DebtsAccountType, DebtsStatus } from './debt.interface';
-import {DebtDto, DebtsIdValidationObject} from './debt.dto';
-import { CreateVirtualUserDto } from '../users/user.dto';
+import { DebtInterface } from './debt.interface';
+import { DebtsIdValidationObject } from './debt.dto';
 import { getImagesPath } from '../../services/get-images-path.service';
-import Operation from '../operations/operation.schema';
-import { OperationInterface, OperationStatus } from '../operations/operation.interface';
 import { ErrorHandler } from '../../services/error-handler.service';
-import { IMAGES_FOLDER_FILE_PATTERN } from '../../common/constants';
 import { DebtsService } from './debts.service';
-import {Id} from "../../common/types";
 
 
 

@@ -48,14 +48,14 @@ export class RoutesModule {
         router.patch('/users', checkJWTAccess, uploadImage, this.usersController.updateUserData);
 
         // AUTH
-        router.put('/signup/local', this.authController.localSignUp);
-
         router.post('/login/local', this.authController.localLogin);
         router.get('/login/facebook', this.authController.facebookLogin);
 
-        router.get('/login_status', checkJWTAccess, this.authController.checkLoginStatus);
+        router.get('/login/status', checkJWTAccess, this.authController.checkLoginStatus);
 
-        router.get('/refresh_token', this.authController.refreshToken);
+        router.get('/login/refresh_token', this.authController.refreshToken);
+
+        router.put('/signup/local', this.authController.localSignUp);
 
         return router;
     }

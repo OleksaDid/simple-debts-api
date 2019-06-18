@@ -1,6 +1,6 @@
 import * as Raven from 'raven';
 import { Request, Response } from 'express';
-import {ResponseError} from "../common/response-error";
+import { ResponseError } from '../common/response-error';
 
 export class ErrorHandler {
 

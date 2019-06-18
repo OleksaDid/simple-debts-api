@@ -1,7 +1,7 @@
 import { Id } from '../../common/types';
 import { DebtsAccountType, DebtsStatus } from './debt.interface';
 import { OperationInterface } from '../operations/operation.interface';
-import {ValidationObject} from "../../common/validation-object";
+import { ValidationObject } from '../../common/validation-object';
 
 
 export class DebtDto {

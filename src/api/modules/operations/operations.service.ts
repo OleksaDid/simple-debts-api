@@ -1,10 +1,10 @@
-import {DebtInterface, DebtsAccountType, DebtsStatus} from "../debts/debt.interface";
-import {Id} from "../../common/types";
-import {OperationInterface, OperationStatus} from "./operation.interface";
-import Operation from "./operation.schema";
-import Debts from "../debts/debt.schema";
+import { DebtInterface, DebtsAccountType, DebtsStatus } from '../debts/debt.interface';
+import { Id } from '../../common/types';
+import { OperationInterface, OperationStatus } from './operation.interface';
+import Operation from './operation.schema';
+import Debts from '../debts/debt.schema';
 import { Types } from 'mongoose';
-import {OperationDto} from "./operation.dto";
+import { OperationDto } from './operation.dto';
 
 export class OperationsService {
 
