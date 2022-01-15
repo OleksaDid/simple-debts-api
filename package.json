@@ -87,7 +87,7 @@
     "concurrently": "^3.5.0",
     "jest": "^19.0.2",
     "nodemon": "^1.12.0",
-    "shelljs": "^0.7.8",
+    "shelljs": "^0.8.5",
     "should": "^7.1.0",
     "supertest": "^2.0.1",
     "supertest-as-promised": "^4.0.2",
