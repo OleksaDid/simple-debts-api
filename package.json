@@ -44,7 +44,7 @@
     "ddos": "^0.1.24",
     "dotenv": "^2.0.0",
     "errorhandler": "^1.4.3",
-    "express": "^4.15.4",
+    "express": "^4.17.3",
     "express-validator": "^3.2.1",
     "fbgraph": "^1.3.0",
     "helmet": "^3.9.0",
